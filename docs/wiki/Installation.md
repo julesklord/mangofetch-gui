@@ -1,74 +1,53 @@
 # 🚀 Installation Guide
 
-MangoFetch is designed to be lightweight and portable, but it relies on a few high-quality external tools to handle specific media formats.
+`mangofetch-gui` is a desktop application powered by `egui` and `eframe`.
 
 ## 📋 System Requirements
 
 *   **Operating Systems**: Windows 10/11, Linux, macOS.
-*   **Rust (optional)**: Required if you are building from source.
-*   **Python 3**: Required for `yt-dlp` functionality.
+*   **Graphics Driver**: A system with OpenGL or Vulkan support.
+*   **Linux Dependencies**: On Linux, compiling requires development libraries for window management and audio:
+    ```bash
+    # Ubuntu/Debian
+    sudo apt-get install -y libx11-dev libasound2-dev libxkbcommon-dev libwayland-dev
+    ```
 
 ---
 
 ## 🛠️ Mandatory Dependencies
 
-MangoFetch uses the best-in-class engines for media processing. Ensure these are installed and in your system `PATH`:
+`mangofetch-gui` uses external engines for specific platform downloads. Ensure these are installed:
 
-1.  **[FFmpeg](https://ffmpeg.org/)**: Essential for merging audio/video streams and transcoding.
-2.  **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**: The engine behind supporting 1000+ video platforms.
+1.  **[FFmpeg](https://ffmpeg.org/)**: Essential for merging audio/video streams.
+2.  **[yt-dlp](https://github.com/yt-dlp/yt-dlp)**: Engine for video extraction.
 
 > [!TIP]
-> MangoFetch can automatically check for these dependencies using the `mangofetch check` command.
+> The GUI automatically runs checkups and can download these tools dynamically in the background when first opened.
 
 ---
 
-## 📦 Installing MangoFetch
+## 📦 Installing mangofetch-gui
 
-### 1. Pre-built Binaries
-Download the latest release for your platform from the [Releases](https://github.com/julesklord/mangofetch-cli/releases) page.
-1.  Extract the ZIP/Tarball.
-2.  Move the `mangofetch` executable to a folder in your `PATH` (e.g., `/usr/local/bin` on Linux or a dedicated `C:\Tools` folder on Windows).
+### 1. Via Cargo (Recommended)
+You can compile and install it directly from crates.io:
+```bash
+cargo install mangofetch-gui
+```
 
-### 2. Building from Source
-If you prefer to build the latest version from the `main` branch:
+### 2. Pre-built Binaries
+Download the latest release ZIP/Tarball for your OS from the [Releases](https://github.com/julesklord/mangofetch-gui/releases) page and run the executable.
+
+### 3. Building from Source
+To build the client yourself:
 
 ```bash
 # Clone the repository
-git clone https://github.com/julesklord/mangofetch.git
-cd mangofetch
+git clone https://github.com/julesklord/mangofetch-gui.git
+cd mangofetch-gui
 
-# Build the CLI
-cargo build --release -p mangofetch-cli
+# Build the GUI
+cargo build --release
 
-# The binary will be located at:
-# ./target/release/mangofetch
-```
-
----
-
-## ✅ Verifying Installation
-
-Run the following command to ensure everything is set up correctly:
-
-```bash
-mangofetch check
-```
-
-> [!SCREENSHOT_PLACEHOLDER: Dependency Check Output]
-> *Captura de la salida del comando 'mangofetch check' mostrando los estados en verde de FFmpeg y yt-dlp.*
-
----
-
-## 🐚 Setup Alias (Optional but Recommended)
-
-For power users, we recommend adding an alias to your shell configuration (`.bashrc`, `.zshrc`, or PowerShell Profile):
-
-**PowerShell**:
-```powershell
-Set-Alias -Name mango -Value mangofetch
-```
-
-**Bash/Zsh**:
-```bash
-alias mango='mangofetch'
+# The executable will be at:
+# ./target/release/mangofetch-gui
 ```

@@ -1,4 +1,4 @@
-# 🥭 MangoFetch
+# 🥭 MangoFetch GUI
 
 ---
 
@@ -11,15 +11,11 @@
 - [⏱️ Quick Start](Quick-Start)
 
 ### 📖 User Guides
-- [💻 CLI Reference](CLI-Guide)
-- [🖥️ TUI Experience](TUI-Experience)
 - [⚙️ Configuration](Configuration)
-- [📡 P2P Sharing](P2P-Sharing)
 
 ### 🏗️ Technical Details
 - [🧩 Core Engine](Architecture)
 - [🌐 Platform Registry](Platforms)
-- [🔌 Plugin SDK](Plugin-Development)
 
 ---
 
