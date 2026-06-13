@@ -5,7 +5,7 @@ edition = "2021"
 description = "Graphical interface for MangoFetch download manager (egui + eframe)"
 authors = ["Jules Martins <TU_ID+julesklord@users.noreply.github.com>"]
 license = "GPL-3.0-or-later"
-repository = "https://github.com/julesklord/mangofetch-cli"
+repository = "https://github.com/julesklord/mangofetch-gui"
 readme = "../README.md"
 keywords = ["mangofetch", "downloader", "gui", "video", "egui"]
 categories = ["gui", "multimedia"]
@@ -15,7 +15,7 @@ name = "mangofetch-gui"
 path = "src/main.rs"
 
 [dependencies]
-mangofetch-core = { git = "https://github.com/julesklord/mangofetch", branch = "main", features = [
+mangofetch-core = { version = "0.7.4", features = [
     "platforms",
 ] }
 eframe = { version = "0.31", features = ["default_fonts", "persistence"] }
