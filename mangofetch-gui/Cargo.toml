@@ -1,6 +1,6 @@
 [package]
 name = "mangofetch-gui"
-version = "0.7.4"
+version = "0.1.0"
 edition = "2021"
 description = "Graphical interface for MangoFetch download manager (egui + eframe)"
 authors = ["Jules Martins <TU_ID+julesklord@users.noreply.github.com>"]
