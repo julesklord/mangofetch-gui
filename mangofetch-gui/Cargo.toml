@@ -20,7 +20,7 @@ mangofetch-core = { version = "0.7.4", features = [
 ] }
 eframe = { version = "0.31", features = ["default_fonts", "persistence"] }
 egui = "0.31"
-egui_extras = { version = "0.31", features = ["all_loaders"] }
+egui_extras = { version = "0.34", features = ["all_loaders"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = "0.7"
 serde = { version = "1", features = ["derive"] }
