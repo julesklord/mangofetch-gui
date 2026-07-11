@@ -642,43 +642,25 @@ impl MangoFetchApp {
                             .unwrap_or(false);
 
                         if has_thumb {
-                            // ── THUMBNAIL CARD: image bg + layered blur overlays ──
+                            // ── THUMBNAIL CARD: image + layered blur overlays ──
                             let card_w = ui.available_width();
-                            let card_h = 300.0;
-                            let img_h = card_h * 0.72;
-                            let text_h = card_h - img_h;
-
-                            // 1. Pre-allocate the image rect at the top
-                            let (img_rect, _) = ui.allocate_exact_size(
-                                Vec2::new(card_w, img_h),
-                                egui::Sense::hover(),
-                            );
-
-                            // 2. Place the Image widget inside that rect (handles async load)
                             let thumb_url = info.thumbnail_url.as_deref().unwrap_or("");
-                            ui.put(
-                                img_rect,
+
+                            // 1. Image widget in normal flow (handles async load)
+                            let img_response = ui.add(
                                 egui::Image::from_uri(thumb_url)
                                     .max_width(card_w)
-                                    .max_height(img_h),
+                                    .max_height(280.0),
                             );
+                            let img_rect = img_response.rect;
 
-                            // 3. Allocate text area below
-                            let (text_rect, _) = ui.allocate_exact_size(
-                                Vec2::new(card_w, text_h),
-                                egui::Sense::hover(),
-                            );
-
-                            // The full card rect (image + text)
-                            let card_rect = img_rect.union(text_rect);
-
-                            // 4. Painter draws on top of everything
+                            // 2. Painter draws overlays ON TOP of the image
                             let painter = ui.painter();
                             let rounding = CornerRadius::same(MonoLayout::CORNER_RADIUS_MD);
 
                             // Card border
                             painter.rect_stroke(
-                                card_rect,
+                                img_rect,
                                 rounding,
                                 Stroke::new(1.0_f32, MonolithSurfaces::SURFACE_6),
                                 StrokeKind::Inside,
@@ -715,28 +697,22 @@ impl MangoFetchApp {
                                 with_alpha(Color32::BLACK, 0.50),
                             );
 
-                            // Text area background
-                            painter.rect_filled(
-                                text_rect,
-                                CornerRadius::ZERO,
-                                MonolithSurfaces::SURFACE_4,
-                            );
-
                             // ── TEXT on top of everything ──
-                            let text_x = text_rect.min.x + MonoSpace::LG;
+                            let text_x = img_rect.min.x + MonoSpace::LG;
+                            let text_y = info_y + MonoSpace::SM;
 
-                            // Title (truncated if too long)
+                            // Title
                             let title_text = if info.title.len() > 50 {
                                 format!("{}...", &info.title[..47])
                             } else {
                                 info.title.clone()
                             };
                             painter.text(
-                                egui::pos2(text_x, text_rect.min.y + MonoSpace::SM),
+                                egui::pos2(text_x, text_y),
                                 Align2::LEFT_TOP,
                                 &title_text,
                                 FontId::new(MonoType::SUBHEADING, FontFamily::Proportional),
-                                MonoText::PRIMARY,
+                                Color32::WHITE,
                             );
 
                             // Duration + Platform row
@@ -747,13 +723,13 @@ impl MangoFetchApp {
                             } else {
                                 "Live".to_string()
                             };
-                            let row_y = text_rect.min.y + MonoSpace::SM + 22.0;
+                            let row_y = text_y + 22.0;
                             painter.text(
                                 egui::pos2(text_x, row_y),
                                 Align2::LEFT_TOP,
                                 &duration_text,
                                 FontId::monospace(MonoType::MONO_DATA),
-                                MonoText::SECONDARY,
+                                Color32::from_gray(200),
                             );
 
                             // Platform pill text
@@ -763,7 +739,7 @@ impl MangoFetchApp {
                                 .layout_no_wrap(
                                     duration_text.clone(),
                                     FontId::monospace(MonoType::MONO_DATA),
-                                    MonoText::SECONDARY,
+                                    Color32::from_gray(200),
                                 )
                                 .size()
                                 .x;
