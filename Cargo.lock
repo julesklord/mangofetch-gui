@@ -2513,6 +2513,8 @@ dependencies = [
  "num-traits",
  "png 0.18.1",
  "tiff",
+ "zune-core",
+ "zune-jpeg",
 ]
 
 [[package]]
@@ -3112,6 +3114,7 @@ dependencies = [
  "egui",
  "egui_extras",
  "font-loader",
+ "image",
  "mangofetch-core",
  "rfd",
  "serde",
