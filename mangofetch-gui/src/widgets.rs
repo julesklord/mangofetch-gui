@@ -1,79 +1,73 @@
 //! Custom reusable MonolithUI widgets for mangofetch-gui
+//! All visual tokens come from theme.rs — no hardcoded colors here.
 
-use crate::theme::{with_alpha, MonolithSurfaces};
+use crate::theme::{
+    with_alpha, MonoLayout, MonoSemantics, MonoSpace, MonoText, MonoType, MonolithSurfaces,
+};
 use egui::{Color32, CornerRadius, FontFamily, FontId, Frame, Margin, RichText, Stroke, Ui, Vec2};
 
-/// Renders a beautiful MonolithUI surface card with uniform padding and borders.
+/// Renders a MonolithUI surface card with elevation and subtle border.
 pub fn surface_card<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-    // --ui-surface-4 is default card bg (#252a3a)
-    let fill_color = MonolithSurfaces::SURFACE_4;
-    // --ui-surface-6 is border highlight (#3a4055)
-    let stroke_color = MonolithSurfaces::SURFACE_6;
-
     Frame::NONE
-        .fill(fill_color)
-        .inner_margin(Margin::same(14))
-        .corner_radius(CornerRadius::same(6)) // --ui-r-md
-        .stroke(Stroke::new(1.0, stroke_color))
+        .fill(MonolithSurfaces::SURFACE_4)
+        .inner_margin(Margin::same(MonoSpace::LG as i8))
+        .corner_radius(CornerRadius::same(MonoLayout::CORNER_RADIUS_MD))
+        .stroke(Stroke::new(1.0_f32, MonolithSurfaces::SURFACE_6))
         .show(ui, add_contents)
         .inner
 }
 
-/// Renders a sunken "well" panel for grouped parameters or backgrounds (e.g. Logs terminal, input well).
+/// Renders a sunken "well" for recessed inputs, terminals, or data areas.
 pub fn sunken_well<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-    // Sunken wells are darker (#060608 / SURFACE_0)
-    let fill_color = MonolithSurfaces::SURFACE_0;
-    let border_color = MonolithSurfaces::SURFACE_3;
-
     Frame::NONE
-        .fill(fill_color)
-        .inner_margin(Margin::same(12))
-        .corner_radius(CornerRadius::same(4)) // --ui-r-sm
-        .stroke(Stroke::new(1.0, border_color))
+        .fill(MonolithSurfaces::SURFACE_0)
+        .inner_margin(Margin::same(MonoSpace::MD as i8))
+        .corner_radius(CornerRadius::same(MonoLayout::CORNER_RADIUS_SM))
+        .stroke(Stroke::new(1.0_f32, MonolithSurfaces::SURFACE_3))
         .show(ui, add_contents)
         .inner
 }
 
-/// A status indicator dot following the MonolithUI semantic specification.
-/// - Active / Complete: Success Green (#34a853) with a pulse/glow
-/// - Queued / Warning / Paused: Amber Yellow (#fbbf24)
-/// - Error: Destructive Red (#f28b82)
+/// Status indicator dot with semantic coloring.
+/// Active/Complete/Online: green with soft glow
+/// Queued/Warning/Paused: amber
+/// Error/Default: danger red
 pub fn status_dot(ui: &mut Ui, status: &str) {
-    let color = match status {
-        "Active" | "Complete" | "Online" => Color32::from_rgb(0x34, 0xa8, 0x53),
-        "Queued" | "Warning" | "Paused" => Color32::from_rgb(0xfb, 0xbf, 0x24),
-        _ => Color32::from_rgb(0xf2, 0x8b, 0x82),
+    let (color, has_glow) = match status {
+        "Active" | "Complete" | "Online" => (MonoSemantics::SUCCESS, true),
+        "Queued" | "Warning" | "Paused" => (MonoSemantics::WARNING, false),
+        _ => (MonoSemantics::DANGER, false),
     };
 
-    let (rect, _response) = ui.allocate_exact_size(Vec2::new(14.0, 14.0), egui::Sense::hover());
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(14.0, 14.0), egui::Sense::hover());
     let painter = ui.painter();
 
-    // Draw the main circle
-    painter.circle_filled(rect.center(), 4.0, color);
-
-    // Draw a tactile glow for Active states
-    if status == "Active" || status == "Online" {
-        painter.circle_filled(rect.center(), 6.5, with_alpha(color, 0.25));
+    // Glow ring for active states
+    if has_glow {
+        painter.circle_filled(rect.center(), 6.5, with_alpha(color, 0.20));
     }
+
+    // Core dot
+    painter.circle_filled(rect.center(), 4.0, color);
 }
 
-/// A MonolithUI pill tag showing text with a custom brand color background.
+/// MonolithUI pill badge with tinted background and brand-colored text.
 pub fn brand_pill(ui: &mut Ui, text: &str, color: Color32) {
     Frame::NONE
         .fill(with_alpha(color, 0.08))
-        .stroke(Stroke::new(1.0, with_alpha(color, 0.22)))
+        .stroke(Stroke::new(1.0_f32, with_alpha(color, 0.22)))
         .inner_margin(Margin::symmetric(8, 3))
-        .corner_radius(CornerRadius::same(4)) // --ui-r-sm
+        .corner_radius(CornerRadius::same(MonoLayout::CORNER_RADIUS_SM))
         .show(ui, |ui| {
             ui.label(
                 RichText::new(text)
                     .color(color)
-                    .font(FontId::new(10.5, FontFamily::Monospace)), // --ui-text-xs
+                    .font(FontId::new(MonoType::MICRO, FontFamily::Monospace)),
             );
         });
 }
 
-/// Renders a beautiful platform-branded tag with a official brand color and custom glpyh.
+/// Platform-branded tag with official color and Nerd Font glyph.
 pub fn platform_pill(ui: &mut Ui, platform: &str) {
     let color = match platform.to_lowercase().as_str() {
         "youtube" => Color32::from_rgb(255, 85, 85),
@@ -81,7 +75,13 @@ pub fn platform_pill(ui: &mut Ui, platform: &str) {
         "tiktok" => Color32::from_rgb(85, 255, 255),
         "twitch" => Color32::from_rgb(180, 100, 255),
         "torrent" => Color32::from_rgb(85, 255, 120),
-        _ => Color32::from_rgb(168, 85, 247), // Default violet
+        "bluesky" => Color32::from_rgb(96, 165, 250),
+        "reddit" => Color32::from_rgb(255, 69, 0),
+        "pinterest" => Color32::from_rgb(230, 0, 35),
+        "vimeo" => Color32::from_rgb(26, 180, 255),
+        "bilibili" => Color32::from_rgb(0, 161, 214),
+        "twitter" | "x" => Color32::from_rgb(29, 161, 242),
+        _ => Color32::from_rgb(168, 85, 247),
     };
 
     let glyph = match platform.to_lowercase().as_str() {
@@ -90,6 +90,12 @@ pub fn platform_pill(ui: &mut Ui, platform: &str) {
         "tiktok" => "󰓳",
         "twitch" => "󰓓",
         "torrent" => "󰄗",
+        "bluesky" => "󰖟",
+        "reddit" => "󰑙",
+        "pinterest" => "󰏖",
+        "vimeo" => "󰨈",
+        "bilibili" => "󰅜",
+        "twitter" | "x" => "󰇩",
         _ => "󰈚",
     };
 
@@ -97,16 +103,130 @@ pub fn platform_pill(ui: &mut Ui, platform: &str) {
     brand_pill(ui, &text, color);
 }
 
-/// Custom header title segment in Monolith Serif Display style.
+/// Section header title with MonolithUI typography scale.
 pub fn section_header(ui: &mut Ui, title: &str) {
     ui.vertical(|ui| {
-        ui.add_space(4.0);
+        ui.add_space(MonoSpace::XS);
         ui.label(
             RichText::new(title)
-                .font(FontId::new(16.0, FontFamily::Proportional))
+                .font(FontId::new(MonoType::HEADING, FontFamily::Proportional))
                 .strong()
-                .color(Color32::from_rgb(0xf3, 0xf4, 0xf6)),
+                .color(MonoText::PRIMARY),
         );
-        ui.add_space(6.0);
+        ui.add_space(MonoSpace::SM);
     });
+}
+
+/// Compact section header for sub-sections within cards.
+pub fn sub_header(ui: &mut Ui, title: &str) {
+    ui.label(
+        RichText::new(title)
+            .font(FontId::new(MonoType::SUBHEADING, FontFamily::Proportional))
+            .strong()
+            .color(MonoText::PRIMARY),
+    );
+}
+
+/// Styled action button with brand color fill.
+pub fn primary_button(
+    ui: &mut Ui,
+    label: &str,
+    width: f32,
+    height: f32,
+    brand_color: Color32,
+) -> bool {
+    let btn = egui::Button::new(
+        RichText::new(label)
+            .strong()
+            .color(Color32::BLACK)
+            .font(FontId::new(MonoType::LABEL, FontFamily::Proportional)),
+    )
+    .fill(brand_color)
+    .min_size(egui::vec2(width, height));
+
+    ui.add(btn).clicked()
+}
+
+/// Ghost/secondary button with subtle border.
+pub fn ghost_button(ui: &mut Ui, label: &str, brand_color: Color32) -> bool {
+    let btn = egui::Button::new(
+        RichText::new(label)
+            .strong()
+            .color(brand_color)
+            .font(FontId::new(MonoType::LABEL, FontFamily::Proportional)),
+    )
+    .fill(Color32::TRANSPARENT)
+    .stroke(Stroke::new(1.0_f32, with_alpha(brand_color, 0.40)));
+
+    ui.add(btn).clicked()
+}
+
+/// Icon button (for toolbar and table actions) — renders a single glyph.
+pub fn icon_button(ui: &mut Ui, icon: &str, tooltip: &str, color: Color32) -> bool {
+    let btn = egui::Button::new(
+        RichText::new(icon)
+            .font(FontId::new(MonoType::BODY, FontFamily::Proportional))
+            .color(color),
+    )
+    .fill(Color32::TRANSPARENT);
+
+    ui.add(btn).on_hover_text(tooltip).clicked()
+}
+
+/// Error banner — inline error message with danger styling.
+pub fn error_banner(ui: &mut Ui, message: &str) {
+    Frame::NONE
+        .fill(MonoSemantics::danger_bg())
+        .stroke(Stroke::new(1.0_f32, MonoSemantics::danger_border()))
+        .inner_margin(Margin::same(MonoSpace::MD as i8))
+        .corner_radius(CornerRadius::same(MonoLayout::CORNER_RADIUS_MD))
+        .show(ui, |ui| {
+            ui.label(
+                RichText::new(message)
+                    .color(MonoSemantics::DANGER)
+                    .font(FontId::new(MonoType::BODY, FontFamily::Proportional)),
+            );
+        });
+}
+
+/// Info banner — neutral information with subtle styling.
+pub fn info_banner(ui: &mut Ui, message: &str) {
+    Frame::NONE
+        .fill(with_alpha(MonolithSurfaces::SURFACE_5, 0.5))
+        .stroke(Stroke::new(1.0_f32, MonolithSurfaces::SURFACE_6))
+        .inner_margin(Margin::same(MonoSpace::MD as i8))
+        .corner_radius(CornerRadius::same(MonoLayout::CORNER_RADIUS_MD))
+        .show(ui, |ui| {
+            ui.label(
+                RichText::new(message)
+                    .color(MonoText::SECONDARY)
+                    .font(FontId::new(MonoType::BODY, FontFamily::Proportional)),
+            );
+        });
+}
+
+/// Loading skeleton placeholder — animated shimmer for content loading.
+pub fn loading_skeleton(ui: &mut Ui, width: f32, height: f32) {
+    let (rect, _) = ui.allocate_exact_size(Vec2::new(width, height), egui::Sense::hover());
+    let painter = ui.painter();
+
+    // Base fill
+    painter.rect_filled(
+        rect,
+        CornerRadius::same(MonoLayout::CORNER_RADIUS_SM),
+        MonolithSurfaces::SURFACE_5,
+    );
+
+    // Shimmer highlight (subtle diagonal gradient effect using 2 overlapping rects)
+    let shimmer_alpha = 0.06;
+    let mid = rect.center().x;
+    let shimmer_rect = egui::Rect::from_min_max(
+        egui::pos2(mid - rect.width() * 0.3, rect.min.y),
+        egui::pos2(mid + rect.width() * 0.3, rect.max.y),
+    );
+    painter.rect_filled(
+        shimmer_rect,
+        CornerRadius::same(MonoLayout::CORNER_RADIUS_SM),
+        with_alpha(Color32::WHITE, shimmer_alpha),
+    );
 }

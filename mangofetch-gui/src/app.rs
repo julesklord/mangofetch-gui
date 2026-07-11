@@ -1,9 +1,10 @@
 //! MangoFetchApp core implementation conforming to the MonolithUI design system.
+//! All visual tokens imported from theme.rs — zero hardcoded colors.
 
 use crate::bridge::{CoreEvent, GuiCommand, MediaInfo, QueueItemInfo};
 use crate::runtime::AppRuntime;
-use crate::theme::BrandPreset;
-use crate::widgets::{brand_pill, section_header, status_dot, sunken_well, surface_card};
+use crate::theme::*;
+use crate::widgets::*;
 use egui::{
     Align, Button, Color32, CornerRadius, FontFamily, FontId, Frame, Layout, Margin, ProgressBar,
     RichText, ScrollArea, Stroke, Ui, Vec2,
@@ -93,14 +94,12 @@ impl MangoFetchApp {
             top_nav_layout: false,
         };
 
-        // Trigger initial core checks
         let _ = app.runtime.send_command(GuiCommand::CheckDependencies);
         let _ = app.runtime.send_command(GuiCommand::RefreshQueue);
 
         app
     }
 
-    /// Drains all incoming asynchronous events from the Tokio background engine
     fn drain_events(&mut self) {
         let events = self.runtime.drain_events();
         for event in events {
@@ -126,12 +125,13 @@ impl MangoFetchApp {
                         item.progress = 100.0;
                     }
                     self.logs
-                        .push(format!("✓ [{}] Completed successfully", title));
+                        .push(format!("\u{2713} [{}] Completed successfully", title));
                 }
                 CoreEvent::DownloadError { id, error } => {
                     if let Some(item) = self.items.iter_mut().find(|i| i.id == id) {
                         item.status = "Error".to_string();
-                        self.logs.push(format!("✗ [ID #{}] Error: {}", id, error));
+                        self.logs
+                            .push(format!("\u{2717} [ID #{}] Error: {}", id, error));
                     }
                 }
                 CoreEvent::MediaInfoFetched(result) => {
@@ -161,12 +161,12 @@ impl MangoFetchApp {
         }
     }
 
-    /// Renders the top navigation panel (horizontal)
+    // ── Navigation ──────────────────────────────────────────────────────────
+
     fn render_top_nav(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            ui.add_space(16.0);
+            ui.add_space(MonoSpace::LG);
 
-            // Tab navigation list
             let nav_tabs = [
                 (Tab::Home, "Home"),
                 (Tab::Queue, "Queue"),
@@ -181,19 +181,23 @@ impl MangoFetchApp {
                 let text_color = if is_active {
                     self.theme.primary()
                 } else {
-                    Color32::from_rgb(0x9c, 0xa3, 0xaf)
+                    MonoText::TERTIARY
                 };
 
                 let fill_color = if is_active {
-                    Color32::from_rgb(0x28, 0x28, 0x28)
+                    MonolithSurfaces::TAB_ACTIVE
                 } else {
                     Color32::TRANSPARENT
                 };
 
-                let button =
-                    egui::Button::new(RichText::new(label).strong().color(text_color).size(14.0))
-                        .fill(fill_color)
-                        .min_size(egui::vec2(0.0, 32.0));
+                let button = egui::Button::new(
+                    RichText::new(label)
+                        .strong()
+                        .color(text_color)
+                        .font(FontId::new(MonoType::LABEL, FontFamily::Proportional)),
+                )
+                .fill(fill_color)
+                .min_size(egui::vec2(0.0, MonoSpace::XXXL));
 
                 let response = ui.add(button);
 
@@ -204,41 +208,39 @@ impl MangoFetchApp {
                     }
                 }
 
-                ui.add_space(8.0);
+                ui.add_space(MonoSpace::SM);
             }
         });
     }
 
-    /// Renders the sidebar navigation panel (left)
     fn render_sidebar(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
-            ui.add_space(24.0);
+            ui.add_space(MonoSpace::XXL);
 
-            // Premium Brand Logo and name
+            // Brand header
             ui.horizontal(|ui| {
-                ui.add_space(16.0);
+                ui.add_space(MonoSpace::LG);
                 ui.add(
                     egui::Image::new(egui::include_image!("../../docs/assets/logo.svg"))
                         .max_width(28.0)
                         .max_height(28.0),
                 );
-                ui.add_space(8.0);
+                ui.add_space(MonoSpace::SM);
                 ui.vertical(|ui| {
                     ui.add_space(4.0);
                     ui.label(
                         RichText::new("MANGOFETCH")
-                            .font(FontId::new(17.0, FontFamily::Proportional))
+                            .font(FontId::new(MonoType::HEADING, FontFamily::Proportional))
                             .strong()
-                            .color(Color32::WHITE),
+                            .color(MonoText::PRIMARY),
                     );
                 });
             });
 
-            ui.add_space(24.0);
+            ui.add_space(MonoSpace::XXL);
             ui.separator();
-            ui.add_space(16.0);
+            ui.add_space(MonoSpace::LG);
 
-            // Tab navigation list
             let nav_tabs = [
                 (Tab::Home, "Home"),
                 (Tab::Queue, "Queue"),
@@ -251,36 +253,39 @@ impl MangoFetchApp {
                 let is_active = self.current_tab == tab_enum;
 
                 ui.horizontal(|ui| {
-                    ui.add_space(8.0);
+                    ui.add_space(MonoSpace::SM);
 
-                    // Physical indicator on active hover
+                    // Active indicator bar
                     if is_active {
                         let (rect, _) =
-                            ui.allocate_exact_size(egui::vec2(4.0, 32.0), egui::Sense::hover());
+                            ui.allocate_exact_size(egui::vec2(3.0, 28.0), egui::Sense::hover());
                         ui.painter()
                             .rect_filled(rect, CornerRadius::same(2), self.theme.primary());
-                        ui.add_space(4.0);
+                        ui.add_space(MonoSpace::XS);
                     } else {
-                        ui.add_space(8.0);
+                        ui.add_space(MonoSpace::SM + 3.0 + MonoSpace::XS);
                     }
 
                     let text_color = if is_active {
                         self.theme.primary()
                     } else {
-                        Color32::from_rgb(0x9c, 0xa3, 0xaf)
+                        MonoText::TERTIARY
                     };
 
                     let fill_color = if is_active {
-                        Color32::from_rgb(0x28, 0x28, 0x28)
+                        MonolithSurfaces::TAB_ACTIVE
                     } else {
                         Color32::TRANSPARENT
                     };
 
                     let button = egui::Button::new(
-                        RichText::new(label).strong().color(text_color).size(15.0),
+                        RichText::new(label)
+                            .strong()
+                            .color(text_color)
+                            .font(FontId::new(MonoType::LABEL, FontFamily::Proportional)),
                     )
                     .fill(fill_color)
-                    .min_size(egui::vec2(ui.available_width() - 16.0, 32.0));
+                    .min_size(egui::vec2(ui.available_width() - MonoSpace::LG, 28.0));
 
                     let response = ui.add(button);
 
@@ -292,21 +297,21 @@ impl MangoFetchApp {
                     }
                 });
 
-                ui.add_space(8.0);
+                ui.add_space(MonoSpace::SM);
             }
 
-            // Push dynamic tactical radar scanner to the bottom
+            // Bottom radar scanner
             let remaining_h = ui.available_height();
             if remaining_h > 40.0 {
                 ui.add_space(remaining_h - 36.0);
                 ui.horizontal(|ui| {
-                    ui.add_space(16.0);
+                    ui.add_space(MonoSpace::LG);
                     let scan_chars = ["|", "/", "-", "\\"];
                     let idx = ((chrono::Local::now().timestamp_subsec_millis() / 250) % 4) as usize;
                     let spin = scan_chars[idx];
                     ui.label(
                         RichText::new(format!("{}  [RADAR: ACTIVE]", spin))
-                            .font(FontId::monospace(10.0))
+                            .font(FontId::monospace(MonoType::MONO_SMALL))
                             .color(self.theme.primary()),
                     );
                 });
@@ -314,121 +319,239 @@ impl MangoFetchApp {
         });
     }
 
-    /// Home Tab: Entry input, options, media preview, download triggers
+    // ── Home Tab ────────────────────────────────────────────────────────────
+
     fn draw_home_tab(&mut self, ui: &mut Ui) {
         section_header(ui, "Command Center");
-        ui.add_space(8.0);
+        ui.add_space(MonoSpace::SM);
 
         ui.horizontal(|ui| {
-            // LEFT COLUMN: Controls well (URL inputs, directory, options)
             let total_width = ui.available_width();
-            let left_col_w = total_width * 0.45; // 45% of available width
-            let right_col_w = total_width * 0.55 - 16.0; // 55% minus gap
+            let left_col_w = (total_width * 0.42).max(320.0);
+            let right_col_w = total_width - left_col_w - MonoSpace::XL;
 
+            // ── LEFT COLUMN: Controls ──
             ui.allocate_ui(Vec2::new(left_col_w, ui.available_height()), |ui| {
                 ui.vertical(|ui| {
-                    // Input Card
+                    // URL Input Card
                     surface_card(ui, |ui| {
-                        ui.label(RichText::new("URL to Download").color(Color32::from_rgb(0xd1, 0xd5, 0xdb)));
-                        ui.add_space(6.0);
+                        ui.label(
+                            RichText::new("URL to Download")
+                                .font(FontId::new(MonoType::LABEL, FontFamily::Proportional))
+                                .color(MonoText::SECONDARY),
+                        );
+                        ui.add_space(MonoSpace::SM);
 
-                        // Sunken input well combining text edit and inspect button
                         sunken_well(ui, |ui| {
                             ui.horizontal(|ui| {
                                 let text_edit = ui.add_sized(
-                                    Vec2::new(ui.available_width() - 95.0, 24.0),
+                                    Vec2::new(ui.available_width() - 95.0, 28.0),
                                     egui::TextEdit::singleline(&mut self.input_url)
                                         .hint_text("Paste YouTube, Twitch, TikTok or direct link...")
-                                        .frame(false) // removes egui default box borders
+                                        .frame(false),
                                 );
 
-                                if text_edit.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                                if text_edit.lost_focus()
+                                    && ui.input(|i| i.key_pressed(egui::Key::Enter))
+                                {
                                     self.fetch_preview();
                                 }
 
-                                if ui.add_sized(Vec2::new(80.0, 24.0), Button::new("Inspect")).clicked() {
+                                if ui
+                                    .add_sized(
+                                        Vec2::new(80.0, 28.0),
+                                        Button::new(
+                                            RichText::new("Inspect")
+                                                .font(FontId::new(
+                                                    MonoType::LABEL,
+                                                    FontFamily::Proportional,
+                                                ))
+                                                .color(self.theme.primary()),
+                                        )
+                                        .fill(MonolithSurfaces::SURFACE_5)
+                                        .stroke(Stroke::new(1.0_f32, self.theme.primary_border())),
+                                    )
+                                    .clicked()
+                                {
                                     self.fetch_preview();
                                 }
                             });
                         });
-                        ui.add_space(4.0);
                     });
 
-                    ui.add_space(12.0);
+                    ui.add_space(MonoSpace::MD);
 
                     // Options Card
                     surface_card(ui, |ui| {
-                        ui.label(RichText::new("Download Options").strong().color(Color32::from_rgb(0xd1, 0xd5, 0xdb)));
-                        ui.add_space(10.0);
+                        ui.label(
+                            RichText::new("Download Options")
+                                .font(FontId::new(MonoType::LABEL, FontFamily::Proportional))
+                                .strong()
+                                .color(MonoText::SECONDARY),
+                        );
+                        ui.add_space(MonoSpace::MD);
 
                         ui.checkbox(&mut self.audio_only, "Extract Audio Only (MP3/M4A/FLAC)");
-                        ui.add_space(10.0);
+                        ui.add_space(MonoSpace::MD);
 
                         if !self.audio_only {
                             ui.horizontal(|ui| {
-                                ui.label("Video Quality:");
+                                ui.label(
+                                    RichText::new("Video Quality:")
+                                        .color(MonoText::SECONDARY),
+                                );
                                 egui::ComboBox::from_id_salt("quality_combo")
                                     .selected_text(&self.selected_quality)
                                     .show_ui(ui, |ui| {
-                                        ui.selectable_value(&mut self.selected_quality, "Best".to_string(), "Best (Default)");
-                                        ui.selectable_value(&mut self.selected_quality, "1080p".to_string(), "1080p HD");
-                                        ui.selectable_value(&mut self.selected_quality, "720p".to_string(), "720p");
-                                        ui.selectable_value(&mut self.selected_quality, "480p".to_string(), "480p");
+                                        ui.selectable_value(
+                                            &mut self.selected_quality,
+                                            "Best".to_string(),
+                                            "Best (Default)",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_quality,
+                                            "1080p".to_string(),
+                                            "1080p HD",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_quality,
+                                            "720p".to_string(),
+                                            "720p",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_quality,
+                                            "480p".to_string(),
+                                            "480p",
+                                        );
                                     });
                             });
-                            ui.add_space(6.0);
+                            ui.add_space(MonoSpace::SM);
                             ui.horizontal(|ui| {
-                                ui.label("Video Format:");
+                                ui.label(
+                                    RichText::new("Video Format:")
+                                        .color(MonoText::SECONDARY),
+                                );
                                 egui::ComboBox::from_id_salt("video_format_combo")
                                     .selected_text(&self.selected_video_format)
                                     .show_ui(ui, |ui| {
-                                        ui.selectable_value(&mut self.selected_video_format, "mp4".to_string(), "MP4");
-                                        ui.selectable_value(&mut self.selected_video_format, "mkv".to_string(), "MKV");
-                                        ui.selectable_value(&mut self.selected_video_format, "webm".to_string(), "WEBM");
+                                        ui.selectable_value(
+                                            &mut self.selected_video_format,
+                                            "mp4".to_string(),
+                                            "MP4",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_video_format,
+                                            "mkv".to_string(),
+                                            "MKV",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_video_format,
+                                            "webm".to_string(),
+                                            "WEBM",
+                                        );
                                     });
                             });
                         } else {
                             ui.horizontal(|ui| {
-                                ui.label("Audio Format:");
+                                ui.label(
+                                    RichText::new("Audio Format:")
+                                        .color(MonoText::SECONDARY),
+                                );
                                 egui::ComboBox::from_id_salt("audio_format_combo")
                                     .selected_text(&self.selected_audio_format)
                                     .show_ui(ui, |ui| {
-                                        ui.selectable_value(&mut self.selected_audio_format, "mp3".to_string(), "MP3");
-                                        ui.selectable_value(&mut self.selected_audio_format, "m4a".to_string(), "M4A");
-                                        ui.selectable_value(&mut self.selected_audio_format, "flac".to_string(), "FLAC");
-                                        ui.selectable_value(&mut self.selected_audio_format, "wav".to_string(), "WAV");
-                                        ui.selectable_value(&mut self.selected_audio_format, "opus".to_string(), "OPUS");
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_format,
+                                            "mp3".to_string(),
+                                            "MP3",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_format,
+                                            "m4a".to_string(),
+                                            "M4A",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_format,
+                                            "flac".to_string(),
+                                            "FLAC",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_format,
+                                            "wav".to_string(),
+                                            "WAV",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_format,
+                                            "opus".to_string(),
+                                            "OPUS",
+                                        );
                                     });
                             });
-                            ui.add_space(6.0);
+                            ui.add_space(MonoSpace::SM);
                             ui.horizontal(|ui| {
-                                ui.label("Audio Quality:");
+                                ui.label(
+                                    RichText::new("Audio Quality:")
+                                        .color(MonoText::SECONDARY),
+                                );
                                 egui::ComboBox::from_id_salt("audio_quality_combo")
                                     .selected_text(&self.selected_audio_quality)
                                     .show_ui(ui, |ui| {
-                                        ui.selectable_value(&mut self.selected_audio_quality, "320K".to_string(), "320K (High)");
-                                        ui.selectable_value(&mut self.selected_audio_quality, "256K".to_string(), "256K");
-                                        ui.selectable_value(&mut self.selected_audio_quality, "192K".to_string(), "192K (Medium)");
-                                        ui.selectable_value(&mut self.selected_audio_quality, "128K".to_string(), "128K (Low)");
-                                        ui.selectable_value(&mut self.selected_audio_quality, "0".to_string(), "0 (Best possible)");
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_quality,
+                                            "320K".to_string(),
+                                            "320K (High)",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_quality,
+                                            "256K".to_string(),
+                                            "256K",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_quality,
+                                            "192K".to_string(),
+                                            "192K (Medium)",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_quality,
+                                            "128K".to_string(),
+                                            "128K (Low)",
+                                        );
+                                        ui.selectable_value(
+                                            &mut self.selected_audio_quality,
+                                            "0".to_string(),
+                                            "0 (Best possible)",
+                                        );
                                     });
                             });
                         }
 
-                        ui.add_space(12.0);
-                        ui.label("Output Directory:");
-                        ui.add_space(4.0);
+                        ui.add_space(MonoSpace::MD);
+                        ui.label(
+                            RichText::new("Output Directory:")
+                                .color(MonoText::SECONDARY),
+                        );
+                        ui.add_space(MonoSpace::XS);
 
-                        // Sunken output well for directory browse
                         sunken_well(ui, |ui| {
                             ui.horizontal(|ui| {
                                 ui.add_sized(
-                                    Vec2::new(ui.available_width() - 85.0, 24.0),
-                                    egui::TextEdit::singleline(&mut self.output_dir)
-                                        .frame(false)
+                                    Vec2::new(ui.available_width() - 85.0, 28.0),
+                                    egui::TextEdit::singleline(&mut self.output_dir).frame(false),
                                 );
 
-                                if ui.add_sized(Vec2::new(75.0, 24.0), Button::new("Browse...")).clicked() {
+                                if ui
+                                    .add_sized(
+                                        Vec2::new(75.0, 28.0),
+                                        Button::new(
+                                            RichText::new("Browse...")
+                                                .font(FontId::new(
+                                                    MonoType::LABEL,
+                                                    FontFamily::Proportional,
+                                                )),
+                                        ),
+                                    )
+                                    .clicked()
+                                {
                                     if let Some(path) = rfd::FileDialog::new().pick_folder() {
                                         self.output_dir = path.to_string_lossy().to_string();
                                     }
@@ -436,13 +559,31 @@ impl MangoFetchApp {
                             });
                         });
 
-                        ui.add_space(16.0);
+                        ui.add_space(MonoSpace::XL);
 
+                        // Primary CTA
                         ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            let btn_disabled = self.input_url.is_empty();
+                            let btn_color = if btn_disabled {
+                                MonolithSurfaces::SURFACE_5
+                            } else {
+                                self.theme.primary()
+                            };
+                            let text_color = if btn_disabled {
+                                MonoText::MUTED
+                            } else {
+                                Color32::BLACK
+                            };
+
                             let start_btn = ui.add_sized(
-                                Vec2::new(160.0, 32.0),
-                                Button::new(RichText::new("Enqueue Download").strong().color(Color32::BLACK))
-                                    .fill(self.theme.primary())
+                                Vec2::new(180.0, 36.0),
+                                Button::new(
+                                    RichText::new("Enqueue Download")
+                                        .strong()
+                                        .font(FontId::new(MonoType::LABEL, FontFamily::Proportional))
+                                        .color(text_color),
+                                )
+                                .fill(btn_color),
                             );
 
                             if start_btn.clicked() && !self.input_url.is_empty() {
@@ -457,7 +598,8 @@ impl MangoFetchApp {
                                 };
                                 let _ = self.runtime.send_command(cmd);
 
-                                self.logs.push(format!("Enqueued download: {}", self.input_url));
+                                self.logs
+                                    .push(format!("Enqueued download: {}", self.input_url));
                                 self.input_url.clear();
                                 self.media_info = None;
                                 self.current_tab = Tab::Queue;
@@ -467,96 +609,150 @@ impl MangoFetchApp {
                 });
             });
 
-            ui.add_space(16.0); // Column separator gap
+            ui.add_space(MonoSpace::XL);
 
-            // RIGHT COLUMN: Operational Manual & Pre-fetch metadata preview
+            // ── RIGHT COLUMN: Preview / Guide ──
             ui.allocate_ui(Vec2::new(right_col_w, ui.available_height()), |ui| {
                 ui.vertical(|ui| {
                     if self.media_info_loading {
+                        // Loading state — skeleton cards
                         surface_card(ui, |ui| {
-                            ui.centered_and_justified(|ui| {
-                                ui.horizontal(|ui| {
-                                    ui.spinner();
-                                    ui.label(RichText::new("Analyzing stream metadata...").italics().color(Color32::from_rgb(0x9c, 0xa3, 0xaf)));
-                                });
-                            });
+                            ui.label(
+                                RichText::new("Analyzing stream metadata...")
+                                    .font(FontId::new(MonoType::LABEL, FontFamily::Proportional))
+                                    .italics()
+                                    .color(MonoText::TERTIARY),
+                            );
+                            ui.add_space(MonoSpace::MD);
+                            loading_skeleton(ui, ui.available_width(), 16.0);
+                            ui.add_space(MonoSpace::SM);
+                            loading_skeleton(ui, ui.available_width() * 0.6, 16.0);
+                            ui.add_space(MonoSpace::SM);
+                            loading_skeleton(ui, ui.available_width() * 0.4, 16.0);
                         });
                     } else if let Some(ref info) = self.media_info {
                         surface_card(ui, |ui| {
-                            ui.label(RichText::new("Media Metadata Inspector").strong().color(self.theme.primary()));
-                            ui.add_space(12.0);
+                            ui.label(
+                                RichText::new("Media Metadata Inspector")
+                                    .font(FontId::new(MonoType::LABEL, FontFamily::Proportional))
+                                    .strong()
+                                    .color(self.theme.primary()),
+                            );
+                            ui.add_space(MonoSpace::MD);
 
                             ui.horizontal(|ui| {
-                                ui.label("Title:");
-                                ui.label(RichText::new(&info.title).strong().color(Color32::WHITE));
+                                ui.label(
+                                    RichText::new("Title:")
+                                        .color(MonoText::TERTIARY),
+                                );
+                                ui.label(
+                                    RichText::new(&info.title)
+                                        .strong()
+                                        .color(MonoText::PRIMARY),
+                                );
                             });
-                            ui.add_space(8.0);
+                            ui.add_space(MonoSpace::SM);
 
                             ui.horizontal(|ui| {
-                                ui.label("Duration:");
+                                ui.label(
+                                    RichText::new("Duration:")
+                                        .color(MonoText::TERTIARY),
+                                );
                                 if let Some(sec) = info.duration {
                                     let min = sec / 60;
                                     let s = sec % 60;
-                                    ui.label(RichText::new(format!("{:02}:{:02}", min, s)).color(Color32::WHITE));
+                                    ui.label(
+                                        RichText::new(format!("{:02}:{:02}", min, s))
+                                            .font(FontId::monospace(MonoType::MONO_DATA))
+                                            .color(MonoText::PRIMARY),
+                                    );
                                 } else {
-                                    ui.label("Live Stream / Unknown");
+                                    ui.label(
+                                        RichText::new("Live Stream / Unknown")
+                                            .color(MonoText::TERTIARY),
+                                    );
                                 }
                             });
-                            ui.add_space(8.0);
+                            ui.add_space(MonoSpace::SM);
 
                             ui.horizontal(|ui| {
-                                ui.label("Platform detected:");
-                                crate::widgets::platform_pill(ui, &info.platform);
+                                ui.label(
+                                    RichText::new("Platform:")
+                                        .color(MonoText::TERTIARY),
+                                );
+                                platform_pill(ui, &info.platform);
                             });
-
-                            ui.add_space(10.0);
                         });
                     } else if let Some(ref err) = self.media_info_error {
-                        Frame::NONE
-                            .fill(Color32::from_rgba_unmultiplied(242, 139, 130, 15))
-                            .stroke(Stroke::new(1.0, Color32::from_rgba_unmultiplied(242, 139, 130, 60)))
-                            .inner_margin(Margin::same(12))
-                            .corner_radius(CornerRadius::same(6))
-                            .show(ui, |ui| {
-                                ui.label(RichText::new(format!("Metadata check failed:\n{}", err)).color(Color32::from_rgb(0xf2, 0x8b, 0x82)));
-                            });
+                        error_banner(ui, &format!("Metadata check failed: {}", err));
                     } else {
-                        // Render standard Quick Start Guide
+                        // Quick Start Guide
                         surface_card(ui, |ui| {
-                            ui.label(RichText::new("QUICK START").strong().color(self.theme.primary()));
-                            ui.add_space(14.0);
+                            ui.label(
+                                RichText::new("QUICK START")
+                                    .font(FontId::new(MonoType::LABEL, FontFamily::Proportional))
+                                    .strong()
+                                    .color(self.theme.primary()),
+                            );
+                            ui.add_space(MonoSpace::LG);
 
                             ui.label(
-                                RichText::new("MangoFetch is a fast, multi-source download manager built for efficiency.")
-                                    .color(Color32::from_rgb(0xd1, 0xd5, 0xdb))
+                                RichText::new(
+                                    "MangoFetch is a fast, multi-source download manager built for efficiency.",
+                                )
+                                .color(MonoText::SECONDARY),
                             );
-                            ui.add_space(12.0);
+                            ui.add_space(MonoSpace::MD);
 
-                            ui.label(RichText::new("GETTING STARTED:").strong().color(Color32::WHITE));
-                            ui.label("1. Paste a media link inside the [URL TO DOWNLOAD] sunken well.");
-                            ui.label("2. Click 'Inspect' or press Enter to analyze the stream metadata.");
-                            ui.label("3. Choose custom options (audio-extraction, quality profiles).");
-                            ui.label("4. Click 'Enqueue Download' to dispatch to the async thread pool.");
+                            ui.label(
+                                RichText::new("GETTING STARTED")
+                                    .strong()
+                                    .color(MonoText::PRIMARY),
+                            );
+                            ui.add_space(MonoSpace::XS);
+                            ui.label(
+                                RichText::new("1. Paste a media link inside the URL well.")
+                                    .color(MonoText::SECONDARY),
+                            );
+                            ui.label(
+                                RichText::new("2. Click Inspect or press Enter to analyze metadata.")
+                                    .color(MonoText::SECONDARY),
+                            );
+                            ui.label(
+                                RichText::new("3. Choose quality and format options.")
+                                    .color(MonoText::SECONDARY),
+                            );
+                            ui.label(
+                                RichText::new("4. Click Enqueue Download to start.")
+                                    .color(MonoText::SECONDARY),
+                            );
 
-                            ui.add_space(16.0);
+                            ui.add_space(MonoSpace::LG);
                             ui.separator();
-                            ui.add_space(12.0);
+                            ui.add_space(MonoSpace::MD);
 
-                            ui.label(RichText::new("INTEGRATED PIPELINES:").strong().color(self.theme.secondary()));
-                            ui.add_space(8.0);
+                            ui.label(
+                                RichText::new("INTEGRATED PIPELINES")
+                                    .strong()
+                                    .color(self.theme.secondary()),
+                            );
+                            ui.add_space(MonoSpace::SM);
 
                             ui.horizontal_wrapped(|ui| {
-                                crate::widgets::platform_pill(ui, "YouTube");
-                                ui.add_space(4.0);
-                                crate::widgets::platform_pill(ui, "Instagram");
-                                ui.add_space(4.0);
-                                crate::widgets::platform_pill(ui, "TikTok");
-                                ui.add_space(4.0);
-                                crate::widgets::platform_pill(ui, "Twitch");
-                                ui.add_space(4.0);
-                                crate::widgets::platform_pill(ui, "Torrent");
+                                platform_pill(ui, "YouTube");
+                                ui.add_space(MonoSpace::XS);
+                                platform_pill(ui, "Instagram");
+                                ui.add_space(MonoSpace::XS);
+                                platform_pill(ui, "TikTok");
+                                ui.add_space(MonoSpace::XS);
+                                platform_pill(ui, "Twitch");
+                                ui.add_space(MonoSpace::XS);
+                                platform_pill(ui, "Torrent");
+                                ui.add_space(MonoSpace::XS);
+                                platform_pill(ui, "Bluesky");
+                                ui.add_space(MonoSpace::XS);
+                                platform_pill(ui, "Reddit");
                             });
-                            ui.add_space(4.0);
                         });
                     }
                 });
@@ -564,99 +760,80 @@ impl MangoFetchApp {
         });
     }
 
-    /// Queue Tab: interactive grid with progress bars
+    // ── Queue Tab ───────────────────────────────────────────────────────────
+
     fn draw_queue_tab(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             section_header(ui, "Active Download Queue");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button("Refresh Queue").clicked() {
+                if ghost_button(ui, "Refresh", self.theme.primary()) {
                     let _ = self.runtime.send_command(GuiCommand::RefreshQueue);
                 }
             });
         });
-        ui.add_space(8.0);
+        ui.add_space(MonoSpace::SM);
 
         if self.items.is_empty() {
             sunken_well(ui, |ui| {
                 ui.centered_and_justified(|ui| {
                     ui.label(
                         RichText::new("No active or completed downloads in the queue.")
-                            .color(Color32::from_rgb(0x9c, 0xa3, 0xaf)),
+                            .font(FontId::new(MonoType::BODY, FontFamily::Proportional))
+                            .color(MonoText::TERTIARY),
                     );
                 });
             });
             return;
         }
 
-        // Render queue in a rich table
         ScrollArea::vertical().show(ui, |ui| {
             TableBuilder::new(ui)
                 .striped(true)
                 .cell_layout(Layout::left_to_right(Align::Center))
-                .column(Column::exact(40.0)) // ID
-                .column(Column::exact(110.0)) // Platform
-                .column(Column::remainder()) // Title
-                .column(Column::exact(110.0)) // Status
-                .column(Column::exact(150.0)) // Progress
-                .column(Column::exact(90.0)) // Actions
-                .header(26.0, |mut header| {
-                    header.col(|ui| {
-                        ui.label(RichText::new("# ID").strong().color(self.theme.primary()));
-                    });
-                    header.col(|ui| {
+                .column(Column::exact(40.0))
+                .column(Column::exact(110.0))
+                .column(Column::remainder())
+                .column(Column::exact(110.0))
+                .column(Column::exact(160.0))
+                .column(Column::exact(80.0))
+                .header(28.0, |mut header| {
+                    let col_label = |ui: &mut Ui, text: &str| {
                         ui.label(
-                            RichText::new("PLATFORM")
+                            RichText::new(text)
+                                .font(FontId::new(MonoType::MICRO, FontFamily::Monospace))
                                 .strong()
                                 .color(self.theme.primary()),
                         );
-                    });
-                    header.col(|ui| {
-                        ui.label(
-                            RichText::new("MEDIA TITLE")
-                                .strong()
-                                .color(self.theme.primary()),
-                        );
-                    });
-                    header.col(|ui| {
-                        ui.label(RichText::new("STATUS").strong().color(self.theme.primary()));
-                    });
-                    header.col(|ui| {
-                        ui.label(
-                            RichText::new("PROGRESS")
-                                .strong()
-                                .color(self.theme.primary()),
-                        );
-                    });
-                    header.col(|ui| {
-                        ui.label(
-                            RichText::new("CONTROLS")
-                                .strong()
-                                .color(self.theme.primary()),
-                        );
-                    });
+                    };
+                    header.col(|ui| col_label(ui, "# ID"));
+                    header.col(|ui| col_label(ui, "PLATFORM"));
+                    header.col(|ui| col_label(ui, "MEDIA TITLE"));
+                    header.col(|ui| col_label(ui, "STATUS"));
+                    header.col(|ui| col_label(ui, "PROGRESS"));
+                    header.col(|ui| col_label(ui, "ACTIONS"));
                 })
                 .body(|body| {
                     let items_clone = self.items.clone();
-                    body.rows(34.0, items_clone.len(), |mut row| {
+                    body.rows(38.0, items_clone.len(), |mut row| {
                         let item = &items_clone[row.index()];
 
                         // ID
                         row.col(|ui| {
                             ui.label(
                                 RichText::new(format!("{:02}", item.id))
-                                    .font(FontId::monospace(11.0))
-                                    .color(Color32::from_rgb(0x6b, 0x72, 0x80)),
+                                    .font(FontId::monospace(MonoType::MONO_DATA))
+                                    .color(MonoText::MUTED),
                             );
                         });
 
-                        // Platform (official branding)
+                        // Platform
                         row.col(|ui| {
-                            crate::widgets::platform_pill(ui, &item.platform);
+                            platform_pill(ui, &item.platform);
                         });
 
                         // Title
                         row.col(|ui| {
-                            ui.label(RichText::new(&item.title).strong().color(Color32::WHITE));
+                            ui.label(RichText::new(&item.title).strong().color(MonoText::PRIMARY));
                         });
 
                         // Status & Dot
@@ -664,7 +841,14 @@ impl MangoFetchApp {
                             ui.horizontal(|ui| {
                                 status_dot(ui, &item.status);
                                 ui.add_space(2.0);
-                                ui.label(&item.status);
+                                ui.label(
+                                    RichText::new(&item.status)
+                                        .font(FontId::new(
+                                            MonoType::CAPTION,
+                                            FontFamily::Proportional,
+                                        ))
+                                        .color(MonoText::SECONDARY),
+                                );
                             });
                         });
 
@@ -683,43 +867,47 @@ impl MangoFetchApp {
                                     let speed_str = format!("{:.1} MB/s", item.speed / 1_048_576.0);
                                     ui.label(
                                         RichText::new(speed_str)
-                                            .font(FontId::monospace(9.0))
+                                            .font(FontId::monospace(MonoType::MONO_MICRO))
                                             .color(self.theme.secondary()),
                                     );
                                 }
                             });
                         });
 
-                        // Action button controls (tactile switch panel)
+                        // Action buttons — using text icons instead of emojis
                         row.col(|ui| {
                             ui.horizontal(|ui| {
                                 if item.status == "Active" {
-                                    let btn = egui::Button::new(
-                                        RichText::new("⏸").color(self.theme.primary()),
-                                    );
-                                    if ui.add(btn).clicked() {
+                                    if icon_button(
+                                        ui,
+                                        "\u{23F8}",
+                                        "Pause download",
+                                        self.theme.primary(),
+                                    ) {
                                         let _ =
                                             self.runtime.send_command(GuiCommand::PauseDownload {
                                                 id: item.id,
                                             });
                                     }
-                                } else if item.status == "Paused" {
-                                    let btn = egui::Button::new(
-                                        RichText::new("▶")
-                                            .color(Color32::from_rgb(0x34, 0xa8, 0x53)),
-                                    );
-                                    if ui.add(btn).clicked() {
-                                        let _ =
-                                            self.runtime.send_command(GuiCommand::ResumeDownload {
-                                                id: item.id,
-                                            });
-                                    }
+                                } else if item.status == "Paused"
+                                    && icon_button(
+                                        ui,
+                                        "\u{25B6}",
+                                        "Resume download",
+                                        MonoSemantics::SUCCESS,
+                                    )
+                                {
+                                    let _ = self
+                                        .runtime
+                                        .send_command(GuiCommand::ResumeDownload { id: item.id });
                                 }
 
-                                let del_btn = egui::Button::new(
-                                    RichText::new("❌").color(Color32::from_rgb(0xf2, 0x8b, 0x82)),
-                                );
-                                if ui.add(del_btn).clicked() {
+                                if icon_button(
+                                    ui,
+                                    "\u{2715}",
+                                    "Remove from queue",
+                                    MonoSemantics::DANGER,
+                                ) {
                                     let _ = self
                                         .runtime
                                         .send_command(GuiCommand::RemoveDownload { id: item.id });
@@ -731,63 +919,55 @@ impl MangoFetchApp {
         });
     }
 
-    /// Settings Tab: engine config
+    // ── Settings Tab ────────────────────────────────────────────────────────
+
     fn draw_settings_tab(&mut self, ui: &mut Ui) {
         section_header(ui, "Preferences");
-        ui.add_space(8.0);
+        ui.add_space(MonoSpace::SM);
 
         ScrollArea::vertical().show(ui, |ui| {
+            // Layout & Behavior
             surface_card(ui, |ui| {
-                ui.label(
-                    RichText::new("Application Layout & Behavior")
-                        .strong()
-                        .color(self.theme.primary()),
-                );
-                ui.add_space(12.0);
+                sub_header(ui, "Application Layout & Behavior");
+                ui.add_space(MonoSpace::MD);
 
                 ui.checkbox(
                     &mut self.top_nav_layout,
                     "Use Top Navigation Bar instead of Sidebar (Hotkey: L)",
                 );
-                ui.add_space(8.0);
+                ui.add_space(MonoSpace::SM);
 
                 ui.checkbox(
                     &mut self.show_persistent_logs,
-                    "Show Persistent Engine Output Terminal (TUI Mode)",
+                    "Show Persistent Engine Output Terminal",
                 );
             });
 
-            ui.add_space(16.0);
+            ui.add_space(MonoSpace::LG);
 
+            // Concurrency
             surface_card(ui, |ui| {
-                ui.label(
-                    RichText::new("Concurrency & Limits")
-                        .strong()
-                        .color(self.theme.primary()),
-                );
-                ui.add_space(12.0);
+                sub_header(ui, "Concurrency & Limits");
+                ui.add_space(MonoSpace::MD);
 
                 ui.horizontal(|ui| {
-                    ui.label("Max Concurrent Downloads:");
+                    ui.label(RichText::new("Max Concurrent Downloads:").color(MonoText::SECONDARY));
                     ui.add(egui::Slider::new(&mut self.concurrent_limit, 1..=8));
                 });
 
-                ui.add_space(8.0);
+                ui.add_space(MonoSpace::SM);
                 ui.checkbox(&mut self.auto_retry, "Automatically retry failed downloads");
             });
 
-            ui.add_space(16.0);
+            ui.add_space(MonoSpace::LG);
 
+            // Theme Selector
             surface_card(ui, |ui| {
-                ui.label(
-                    RichText::new("Graphical Customization")
-                        .strong()
-                        .color(self.theme.primary()),
-                );
-                ui.add_space(12.0);
+                sub_header(ui, "Graphical Customization");
+                ui.add_space(MonoSpace::MD);
 
-                ui.label("Active Brand Preset Theme:");
-                ui.add_space(8.0);
+                ui.label(RichText::new("Active Brand Preset Theme:").color(MonoText::SECONDARY));
+                ui.add_space(MonoSpace::SM);
 
                 let presets = [
                     BrandPreset::PlasmCore,
@@ -802,24 +982,24 @@ impl MangoFetchApp {
                         let active = self.theme == preset;
 
                         let fill = if active {
-                            crate::theme::MonolithSurfaces::SURFACE_5
+                            MonolithSurfaces::SURFACE_5
                         } else {
-                            crate::theme::MonolithSurfaces::SURFACE_3
+                            MonolithSurfaces::SURFACE_3
                         };
                         let border_stroke = if active {
-                            Stroke::new(1.5, preset.primary())
+                            Stroke::new(1.5_f32, preset.primary())
                         } else {
-                            Stroke::new(1.0, crate::theme::MonolithSurfaces::SURFACE_6)
+                            Stroke::new(1.0_f32, MonolithSurfaces::SURFACE_6)
                         };
 
                         let response = Frame::NONE
                             .fill(fill)
                             .stroke(border_stroke)
-                            .corner_radius(CornerRadius::same(6))
+                            .corner_radius(CornerRadius::same(MonoLayout::CORNER_RADIUS_MD))
                             .inner_margin(Margin::symmetric(10, 6))
                             .show(ui, |ui| {
                                 ui.horizontal(|ui| {
-                                    // Circular color sweeps indicators
+                                    // Dual-color indicator
                                     let (rect, _) = ui.allocate_exact_size(
                                         Vec2::new(18.0, 10.0),
                                         egui::Sense::hover(),
@@ -841,15 +1021,21 @@ impl MangoFetchApp {
                                         CornerRadius::same(2),
                                         preset.secondary(),
                                     );
-                                    ui.add_space(4.0);
+                                    ui.add_space(MonoSpace::XS);
 
                                     let text_color = if active {
-                                        Color32::WHITE
+                                        MonoText::PRIMARY
                                     } else {
-                                        Color32::from_rgb(0x9c, 0xa3, 0xaf)
+                                        MonoText::TERTIARY
                                     };
                                     ui.label(
-                                        RichText::new(preset.name()).strong().color(text_color),
+                                        RichText::new(preset.name())
+                                            .font(FontId::new(
+                                                MonoType::CAPTION,
+                                                FontFamily::Proportional,
+                                            ))
+                                            .strong()
+                                            .color(text_color),
                                     );
                                 });
                             })
@@ -862,53 +1048,47 @@ impl MangoFetchApp {
                             crate::theme::apply_monolith_dark(ui.ctx(), preset);
                         }
 
-                        ui.add_space(6.0);
+                        ui.add_space(MonoSpace::SM);
                     }
                 });
             });
 
-            ui.add_space(16.0);
+            ui.add_space(MonoSpace::LG);
 
-            // Engine status checks
+            // Dependencies
             surface_card(ui, |ui| {
-                ui.label(
-                    RichText::new("External Dependencies")
-                        .strong()
-                        .color(self.theme.primary()),
-                );
-                ui.add_space(12.0);
+                sub_header(ui, "External Dependencies");
+                ui.add_space(MonoSpace::MD);
 
                 ui.horizontal(|ui| {
-                    ui.label("yt-dlp Core Downloader:");
+                    ui.label(RichText::new("yt-dlp Core Downloader:").color(MonoText::SECONDARY));
                     if self.ytdlp_installed {
-                        brand_pill(ui, "INSTALLED", Color32::from_rgb(0x34, 0xa8, 0x53));
+                        brand_pill(ui, "INSTALLED", MonoSemantics::SUCCESS);
                     } else {
-                        brand_pill(
-                            ui,
-                            "MISSING / RECOVERY",
-                            Color32::from_rgb(0xf2, 0x8b, 0x82),
-                        );
+                        brand_pill(ui, "MISSING", MonoSemantics::DANGER);
                     }
                 });
 
-                ui.add_space(6.0);
+                ui.add_space(MonoSpace::SM);
 
                 ui.horizontal(|ui| {
-                    ui.label("ffmpeg Converter Suite:");
+                    ui.label(RichText::new("ffmpeg Converter Suite:").color(MonoText::SECONDARY));
                     if self.ffmpeg_installed {
-                        brand_pill(ui, "INSTALLED", Color32::from_rgb(0x34, 0xa8, 0x53));
+                        brand_pill(ui, "INSTALLED", MonoSemantics::SUCCESS);
                     } else {
-                        brand_pill(ui, "MISSING", Color32::from_rgb(0xf2, 0x8b, 0x82));
+                        brand_pill(ui, "MISSING", MonoSemantics::DANGER);
                     }
                 });
 
-                ui.add_space(12.0);
-                if ui.button("Force Re-Check Dependencies").clicked() {
+                ui.add_space(MonoSpace::MD);
+                if ghost_button(ui, "Force Re-Check Dependencies", self.theme.primary()) {
                     let _ = self.runtime.send_command(GuiCommand::CheckDependencies);
                 }
             });
         });
     }
+
+    // ── Logs Tab ────────────────────────────────────────────────────────────
 
     fn draw_logs_content(&self, ui: &mut Ui) {
         ScrollArea::vertical()
@@ -918,24 +1098,24 @@ impl MangoFetchApp {
                 if self.logs.is_empty() {
                     ui.label(
                         RichText::new("[SYSTEM] Idle - Listening for download tasks...")
-                            .font(FontId::monospace(11.0))
-                            .color(Color32::from_rgb(0x9c, 0xa3, 0xaf)),
+                            .font(FontId::monospace(MonoType::MONO_DATA))
+                            .color(MonoText::TERTIARY),
                     );
                 } else {
                     for line in &self.logs {
-                        let text_color = if line.starts_with('✓') {
-                            Color32::from_rgb(0x81, 0xc9, 0x95) // Success green
-                        } else if line.starts_with('✗') {
-                            Color32::from_rgb(0xf2, 0x8b, 0x82) // Danger red
-                        } else if line.starts_with('⚙') {
+                        let text_color = if line.starts_with('\u{2713}') {
+                            MonoSemantics::SUCCESS
+                        } else if line.starts_with('\u{2717}') {
+                            MonoSemantics::DANGER
+                        } else if line.starts_with('\u{2699}') {
                             self.theme.primary()
                         } else {
-                            Color32::from_rgb(0xe5, 0xe7, 0xeb) // Neutral
+                            MonoText::SECONDARY
                         };
 
                         ui.label(
                             RichText::new(line)
-                                .font(FontId::monospace(11.0))
+                                .font(FontId::monospace(MonoType::MONO_DATA))
                                 .color(text_color),
                         );
                     }
@@ -943,71 +1123,89 @@ impl MangoFetchApp {
             });
     }
 
-    /// Logs Tab: scrollable terminal mockup
     fn draw_logs_tab(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
             section_header(ui, "Engine Activity Shell");
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                if ui.button("Clear Buffer").clicked() {
+                if ghost_button(ui, "Clear Buffer", self.theme.primary()) {
                     self.logs.clear();
                 }
             });
         });
-        ui.add_space(6.0);
+        ui.add_space(MonoSpace::SM);
 
         sunken_well(ui, |ui| {
             self.draw_logs_content(ui);
         });
     }
 
-    /// About Tab: information block
+    // ── About Tab ───────────────────────────────────────────────────────────
+
     fn draw_about_tab(&mut self, ui: &mut Ui) {
         section_header(ui, "About MangoFetch");
-        ui.add_space(8.0);
+        ui.add_space(MonoSpace::SM);
 
         ScrollArea::vertical().show(ui, |ui| {
             surface_card(ui, |ui| {
                 ui.centered_and_justified(|ui| {
-                    ui.label(RichText::new("🥭").font(FontId::new(48.0, FontFamily::Proportional)));
+                    ui.label(
+                        RichText::new("\u{1F96D}")
+                            .font(FontId::new(48.0, FontFamily::Proportional)),
+                    );
                 });
-                ui.add_space(12.0);
+                ui.add_space(MonoSpace::MD);
 
                 ui.label(
-                    RichText::new("MangoFetch v0.7.2")
-                        .font(FontId::new(20.0, FontFamily::Proportional))
+                    RichText::new(format!("MangoFetch v{}", env!("CARGO_PKG_VERSION")))
+                        .font(FontId::new(MonoType::DISPLAY, FontFamily::Proportional))
                         .strong()
                         .color(self.theme.primary()),
                 );
 
-                ui.label("concurrent media downloading utility.");
-                ui.add_space(12.0);
-
-                ui.label("Credits & Contributors:");
                 ui.label(
-                    RichText::new("• Core Architecture & GUI: Jules Martins")
-                        .strong()
-                        .color(Color32::WHITE),
+                    RichText::new("Concurrent media downloading utility.")
+                        .color(MonoText::SECONDARY),
                 );
-                ui.label("• Framework: egui + eframe (Immediate mode Desktop Suite)");
-                ui.label("• Async Engine: Tokio multi-threaded runtime");
+                ui.add_space(MonoSpace::MD);
 
-                ui.add_space(16.0);
+                ui.label(
+                    RichText::new("Credits & Contributors")
+                        .strong()
+                        .color(MonoText::PRIMARY),
+                );
+                ui.label(
+                    RichText::new("Core Architecture & GUI: Jules Martins")
+                        .strong()
+                        .color(MonoText::PRIMARY),
+                );
+                ui.label(
+                    RichText::new("Framework: egui + eframe (Immediate mode Desktop Suite)")
+                        .color(MonoText::SECONDARY),
+                );
+                ui.label(
+                    RichText::new("Async Engine: Tokio multi-threaded runtime")
+                        .color(MonoText::SECONDARY),
+                );
+
+                ui.add_space(MonoSpace::LG);
                 ui.separator();
-                ui.add_space(8.0);
+                ui.add_space(MonoSpace::SM);
 
                 ui.label(
                     RichText::new("LICENSE AND LEGAL")
-                        .font(FontId::new(12.0, FontFamily::Monospace))
+                        .font(FontId::monospace(MonoType::MONO_SMALL))
                         .strong()
                         .color(self.theme.secondary()),
                 );
-                ui.add_space(4.0);
-                ui.label("This software is licensed under the GPL-3.0-or-later License.");
+                ui.add_space(MonoSpace::XS);
+                ui.label(
+                    RichText::new("This software is licensed under the GPL-3.0-or-later License.")
+                        .color(MonoText::SECONDARY),
+                );
             });
         });
     }
 
-    /// Triggers url inspections
     fn fetch_preview(&mut self) {
         if !self.input_url.is_empty() {
             self.media_info_loading = true;
@@ -1022,86 +1220,82 @@ impl MangoFetchApp {
 
 impl eframe::App for MangoFetchApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        // 1. Drain pending core events
+        // 1. Drain events
         self.drain_events();
 
-        // Refresh system metrics every 2 seconds (not every frame)
+        // Refresh telemetry every 2s
         if self.last_sys_refresh.elapsed() >= std::time::Duration::from_secs(2) {
             self.sys.refresh_cpu();
             self.sys.refresh_memory();
             self.last_sys_refresh = std::time::Instant::now();
         }
 
-        // Check for 'l' key to toggle layout
+        // Hotkey: toggle layout
         if ctx.input(|i| i.key_pressed(egui::Key::L)) {
             self.top_nav_layout = !self.top_nav_layout;
         }
 
-        // Separator painter — draws crisp 1px chrome borders between panels (native desktop feel)
-        let sep_color = Color32::from_rgba_unmultiplied(255, 255, 255, 18);
-        let sep_stroke = Stroke::new(1.0, sep_color);
+        // Separator painter
         let sep = ctx.layer_painter(egui::LayerId::new(
             egui::Order::Foreground,
             egui::Id::new("panel_separators"),
         ));
+        let sep_stroke = MonoSemantics::separator_stroke();
 
-        // 2. Top Toolbar — fixed 36px, deepest chrome tone
+        // 2. Top Toolbar — compact 48px
         let top = egui::TopBottomPanel::top("command_bar")
-            .exact_height(54.0)
-            .frame(Frame::NONE.fill(Color32::from_rgb(0x10, 0x10, 0x10)))
+            .exact_height(MonoLayout::TOOLBAR_HEIGHT)
+            .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_1))
             .show(ctx, |ui| {
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    ui.add_space(14.0);
+                    ui.add_space(MonoSpace::LG);
                     ui.label(
                         RichText::new("mangofetch")
-                            .font(FontId::new(11.0, FontFamily::Monospace))
-                            .color(Color32::from_rgb(0x4a, 0x54, 0x68)),
+                            .font(FontId::monospace(MonoType::MONO_SMALL))
+                            .color(MonoText::GHOST),
                     );
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.add_space(14.0);
+                        ui.add_space(MonoSpace::LG);
 
-                        // Pulsing connection dot glow
-                        let is_even =
-                            (chrono::Local::now().timestamp_subsec_millis() / 500) % 2 == 0;
+                        // Pulsing connection indicator
+                        let is_even = (chrono::Local::now().timestamp_subsec_millis() / 500)
+                            .is_multiple_of(2);
                         let status_lbl = if is_even { "Active" } else { "Online" };
                         status_dot(ui, status_lbl);
 
                         ui.label(
                             RichText::new("CONNECTED")
-                                .font(FontId::new(10.5, FontFamily::Monospace))
-                                .color(Color32::from_rgb(0x34, 0xa8, 0x53)),
+                                .font(FontId::monospace(MonoType::MONO_MICRO))
+                                .color(MonoSemantics::SUCCESS),
                         );
-                        ui.add_space(6.0);
-                        ui.label(
-                            RichText::new("│")
-                                .color(Color32::from_rgba_unmultiplied(255, 255, 255, 18)),
-                        );
-                        ui.add_space(6.0);
+                        ui.add_space(MonoSpace::SM);
+                        ui.label(RichText::new("\u{2502}").color(MonoSemantics::separator()));
+                        ui.add_space(MonoSpace::SM);
 
                         let active_cnt = self.items.iter().filter(|i| i.status == "Active").count();
                         ui.label(
                             RichText::new(format!("THREAD POOL: {} ACTIVE", active_cnt))
-                                .font(FontId::new(10.5, FontFamily::Monospace))
+                                .font(FontId::monospace(MonoType::MONO_MICRO))
                                 .color(self.theme.primary()),
                         );
                     });
                 });
             });
-        // 1px border beneath toolbar
         sep.hline(
             top.response.rect.left()..=top.response.rect.right(),
             top.response.rect.bottom(),
             sep_stroke,
         );
 
-        // 3. Bottom Status Bar — fixed 26px, same deep chrome tone
+        // 3. Bottom Status Bar
         let bottom = egui::TopBottomPanel::bottom("status_bar")
-            .exact_height(28.0)
-            .frame(Frame::NONE.fill(Color32::from_rgb(0x0C, 0x0C, 0x0C)))
+            .exact_height(MonoLayout::STATUS_BAR_HEIGHT)
+            .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_1))
             .show(ctx, |ui| {
                 ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
-                    ui.add_space(14.0);
+                    ui.add_space(MonoSpace::LG);
 
+                    // CPU telemetry
                     let cpu_usage = self.sys.global_cpu_info().cpu_usage();
                     let cpu_bar_width = 8usize;
                     let cpu_filled = (((cpu_usage / 100.0) * cpu_bar_width as f32).round()
@@ -1109,10 +1303,11 @@ impl eframe::App for MangoFetchApp {
                         .min(cpu_bar_width);
                     let cpu_bar = format!(
                         "{}{}",
-                        "█".repeat(cpu_filled),
-                        "░".repeat(cpu_bar_width.saturating_sub(cpu_filled))
+                        "\u{2588}".repeat(cpu_filled),
+                        "\u{2591}".repeat(cpu_bar_width.saturating_sub(cpu_filled))
                     );
 
+                    // RAM telemetry
                     let total_mem = self.sys.total_memory() / 1_048_576;
                     let used_mem = self.sys.used_memory() / 1_048_576;
                     let ram_pct = (used_mem as f32 / total_mem as f32 * 100.0).clamp(0.0, 100.0);
@@ -1121,8 +1316,8 @@ impl eframe::App for MangoFetchApp {
                         .min(ram_bar_width);
                     let ram_bar = format!(
                         "{}{}",
-                        "█".repeat(ram_filled),
-                        "░".repeat(ram_bar_width.saturating_sub(ram_filled))
+                        "\u{2588}".repeat(ram_filled),
+                        "\u{2591}".repeat(ram_bar_width.saturating_sub(ram_filled))
                     );
 
                     ui.label(
@@ -1130,40 +1325,42 @@ impl eframe::App for MangoFetchApp {
                             "CPU [{}] {:.1}%    RAM [{}] {}/{} MB",
                             cpu_bar, cpu_usage, ram_bar, used_mem, total_mem
                         ))
-                        .font(FontId::new(10.0, FontFamily::Monospace))
-                        .color(Color32::from_rgb(0x55, 0x5f, 0x72)),
+                        .font(FontId::monospace(MonoType::MONO_SMALL))
+                        .color(MonoText::CHROME),
                     );
 
                     ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                        ui.add_space(14.0);
+                        ui.add_space(MonoSpace::LG);
                         ui.label(
                             RichText::new(format!(
-                                "{}  ·  v{}",
+                                "{}  \u{00B7}  v{}",
                                 self.theme.name().to_uppercase(),
                                 env!("CARGO_PKG_VERSION")
                             ))
-                            .font(FontId::new(10.0, FontFamily::Monospace))
-                            .color(Color32::from_rgb(0x4a, 0x54, 0x68)),
+                            .font(FontId::monospace(MonoType::MONO_SMALL))
+                            .color(MonoText::GHOST),
                         );
                     });
                 });
             });
-        // 1px border above status bar
         sep.hline(
             bottom.response.rect.left()..=bottom.response.rect.right(),
             bottom.response.rect.top(),
             sep_stroke,
         );
 
+        // Persistent log panel
         if self.show_persistent_logs {
             let log_panel = egui::TopBottomPanel::bottom("persistent_logs_panel")
                 .resizable(true)
                 .min_height(120.0)
-                .frame(Frame::NONE.fill(Color32::from_rgb(0x18, 0x18, 0x18)))
+                .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_2))
                 .show(ctx, |ui| {
-                    Frame::NONE.inner_margin(Margin::same(8)).show(ui, |ui| {
-                        self.draw_logs_content(ui);
-                    });
+                    Frame::NONE
+                        .inner_margin(Margin::same(MonoSpace::SM as i8))
+                        .show(ui, |ui| {
+                            self.draw_logs_content(ui);
+                        });
                 });
             sep.hline(
                 log_panel.response.rect.left()..=log_panel.response.rect.right(),
@@ -1172,10 +1369,11 @@ impl eframe::App for MangoFetchApp {
             );
         }
 
+        // Navigation panel
         if self.top_nav_layout {
             let top_nav = egui::TopBottomPanel::top("top_nav_panel")
                 .exact_height(48.0)
-                .frame(Frame::NONE.fill(Color32::from_rgb(0x15, 0x15, 0x15)))
+                .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_1))
                 .show(ctx, |ui| {
                     self.render_top_nav(ui);
                 });
@@ -1185,15 +1383,13 @@ impl eframe::App for MangoFetchApp {
                 sep_stroke,
             );
         } else {
-            // 4. Left Sidebar — slightly lighter than toolbar chrome, clean nav panel
             let sidebar = egui::SidePanel::left("left_sidebar")
                 .resizable(false)
-                .exact_width(200.0)
-                .frame(Frame::NONE.fill(Color32::from_rgb(0x15, 0x15, 0x15)))
+                .exact_width(MonoLayout::SIDEBAR_WIDTH)
+                .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_1))
                 .show(ctx, |ui| {
                     self.render_sidebar(ui);
                 });
-            // 1px border on the right edge of sidebar
             sep.vline(
                 sidebar.response.rect.right(),
                 sidebar.response.rect.top()..=sidebar.response.rect.bottom(),
@@ -1201,13 +1397,12 @@ impl eframe::App for MangoFetchApp {
             );
         }
 
-        // 5. Central Content Panel — clean surface, no decorative pattern
-        // Slightly warmer/lighter than chrome to visually anchor content
+        // Central content
         egui::CentralPanel::default()
-            .frame(Frame::NONE.fill(Color32::from_rgb(0x1C, 0x1C, 0x1C)))
+            .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_3))
             .show(ctx, |ui| {
                 Frame::NONE
-                    .inner_margin(Margin::same(20))
+                    .inner_margin(Margin::same(MonoSpace::XL as i8))
                     .show(ui, |ui| match self.current_tab {
                         Tab::Home => self.draw_home_tab(ui),
                         Tab::Queue => self.draw_queue_tab(ui),
@@ -1217,7 +1412,6 @@ impl eframe::App for MangoFetchApp {
                     });
             });
 
-        // Repaint every 250ms for telemetry and queue state
         ctx.request_repaint_after(std::time::Duration::from_millis(250));
     }
 }
