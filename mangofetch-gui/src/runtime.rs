@@ -133,7 +133,7 @@ impl DownloadReporter for GuiReporter {
         _url: String,
         title: String,
         _author: String,
-        _thumbnail_url: Option<String>,
+        thumbnail_url: Option<String>,
         duration_seconds: Option<f64>,
     ) {
         self.send(CoreEvent::MediaInfoFetched(Ok(MediaInfo {
@@ -141,6 +141,7 @@ impl DownloadReporter for GuiReporter {
             duration: duration_seconds.map(|d| d as u64),
             platform: "Generic".to_string(),
             available_formats: vec![],
+            thumbnail_url,
         })));
     }
 
@@ -164,6 +165,7 @@ impl DownloadReporter for GuiReporter {
                     progress: i.percent as f32,
                     speed: i.speed_bytes_per_sec,
                     eta: None,
+                    thumbnail_url: i.thumbnail_url,
                 }
             })
             .collect();
@@ -365,6 +367,7 @@ impl AppRuntime {
                                                 progress: i.percent as f32,
                                                 speed: i.speed_bytes_per_sec,
                                                 eta: None,
+                                                thumbnail_url: i.thumbnail_url,
                                             }
                                         })
                                         .collect();
@@ -429,6 +432,7 @@ impl AppRuntime {
                                                         .map(|d| d as u64),
                                                     platform: platform_name,
                                                     available_formats: formats,
+                                                    thumbnail_url: info.thumbnail_url,
                                                 })),
                                             );
                                         }
@@ -474,6 +478,7 @@ impl AppRuntime {
                                         progress: i.percent as f32,
                                         speed: i.speed_bytes_per_sec,
                                         eta: None,
+                                        thumbnail_url: i.thumbnail_url,
                                     }
                                 })
                                 .collect();

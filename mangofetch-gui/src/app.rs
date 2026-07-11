@@ -45,6 +45,7 @@ pub struct MangoFetchApp {
     media_info_loading: bool,
     media_info: Option<MediaInfo>,
     media_info_error: Option<String>,
+    thumbnail_texture: Option<egui::TextureHandle>,
 
     // Settings parameters
     concurrent_limit: usize,
@@ -86,12 +87,13 @@ impl MangoFetchApp {
             media_info_loading: false,
             media_info: None,
             media_info_error: None,
+            thumbnail_texture: None,
             concurrent_limit: 3,
             auto_retry: true,
             show_persistent_logs: false,
             sys,
             last_sys_refresh: std::time::Instant::now(),
-            top_nav_layout: false,
+            top_nav_layout: true,
         };
 
         let _ = app.runtime.send_command(GuiCommand::CheckDependencies);
@@ -136,6 +138,7 @@ impl MangoFetchApp {
                 }
                 CoreEvent::MediaInfoFetched(result) => {
                     self.media_info_loading = false;
+                    self.thumbnail_texture = None;
                     match result {
                         Ok(info) => {
                             self.media_info = Some(info);
@@ -602,6 +605,7 @@ impl MangoFetchApp {
                                     .push(format!("Enqueued download: {}", self.input_url));
                                 self.input_url.clear();
                                 self.media_info = None;
+                                self.thumbnail_texture = None;
                                 self.current_tab = Tab::Queue;
                             }
                         });
@@ -682,6 +686,20 @@ impl MangoFetchApp {
                                 );
                                 platform_pill(ui, &info.platform);
                             });
+
+                            // Thumbnail preview
+                            if let Some(ref thumb_url) = info.thumbnail_url {
+                                if !thumb_url.is_empty() {
+                                    ui.add_space(MonoSpace::MD);
+                                    let max_thumb_w = ui.available_width();
+                                    let max_thumb_h = 220.0;
+                                    ui.add(
+                                        egui::Image::from_uri(thumb_url.as_str())
+                                            .max_width(max_thumb_w)
+                                            .max_height(max_thumb_h),
+                                    );
+                                }
+                            }
                         });
                     } else if let Some(ref err) = self.media_info_error {
                         error_banner(ui, &format!("Metadata check failed: {}", err));

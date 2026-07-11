@@ -83,6 +83,7 @@ pub struct QueueItemInfo {
     pub progress: f32,
     pub speed: f64,
     pub eta: Option<u64>,
+    pub thumbnail_url: Option<String>,
 }
 
 /// Información de un medio (título, duración, etc)
@@ -92,4 +93,5 @@ pub struct MediaInfo {
     pub duration: Option<u64>,
     pub platform: String,
     pub available_formats: Vec<String>,
+    pub thumbnail_url: Option<String>,
 }
