@@ -168,23 +168,21 @@ impl MangoFetchApp {
 
     fn render_top_nav(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            // ── Brand logo ──
-            ui.add_space(MonoSpace::LG);
-            ui.add(
-                egui::Image::new(egui::include_image!("../../docs/assets/logo.svg"))
-                    .max_width(22.0)
-                    .max_height(22.0),
-            );
-            ui.add_space(MonoSpace::SM);
-            ui.label(
-                RichText::new("MANGOFETCH")
-                    .font(FontId::new(MonoType::HEADING, FontFamily::Proportional))
-                    .strong()
-                    .color(MonoText::PRIMARY),
-            );
-
-            // ── Nav tabs (only in top-nav mode) ──
             if self.top_nav_layout {
+                // ── Top-nav mode: logo + tabs ──
+                ui.add_space(MonoSpace::LG);
+                ui.add(
+                    egui::Image::new(egui::include_image!("../../docs/assets/logo.svg"))
+                        .max_width(22.0)
+                        .max_height(22.0),
+                );
+                ui.add_space(MonoSpace::SM);
+                ui.label(
+                    RichText::new("MANGOFETCH")
+                        .font(FontId::new(MonoType::HEADING, FontFamily::Proportional))
+                        .strong()
+                        .color(MonoText::PRIMARY),
+                );
                 ui.add_space(MonoSpace::XL);
                 ui.separator();
                 ui.add_space(MonoSpace::MD);
@@ -199,19 +197,16 @@ impl MangoFetchApp {
 
                 for (tab_enum, label) in nav_tabs {
                     let is_active = self.current_tab == tab_enum;
-
                     let text_color = if is_active {
                         self.theme.primary()
                     } else {
                         MonoText::TERTIARY
                     };
-
                     let fill_color = if is_active {
                         MonolithSurfaces::TAB_ACTIVE
                     } else {
                         Color32::TRANSPARENT
                     };
-
                     let button = egui::Button::new(
                         RichText::new(label)
                             .strong()
@@ -220,21 +215,18 @@ impl MangoFetchApp {
                     )
                     .fill(fill_color)
                     .min_size(egui::vec2(0.0, MonoSpace::XXXL));
-
                     let response = ui.add(button);
-
                     if response.clicked() {
                         self.current_tab = tab_enum;
                         if tab_enum == Tab::Queue {
                             let _ = self.runtime.send_command(GuiCommand::RefreshQueue);
                         }
                     }
-
                     ui.add_space(MonoSpace::SM);
                 }
             }
 
-            // ── Right side: status ──
+            // ── Right side: status (always) ──
             ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                 ui.add_space(MonoSpace::LG);
                 let scan_chars = ["|", "/", "-", "\\"];
@@ -251,7 +243,31 @@ impl MangoFetchApp {
 
     fn render_sidebar(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
-            ui.add_space(MonoSpace::MD);
+            ui.add_space(MonoSpace::XXL);
+
+            // Brand header
+            ui.horizontal(|ui| {
+                ui.add_space(MonoSpace::LG);
+                ui.add(
+                    egui::Image::new(egui::include_image!("../../docs/assets/logo.svg"))
+                        .max_width(28.0)
+                        .max_height(28.0),
+                );
+                ui.add_space(MonoSpace::SM);
+                ui.vertical(|ui| {
+                    ui.add_space(4.0);
+                    ui.label(
+                        RichText::new("MANGOFETCH")
+                            .font(FontId::new(MonoType::HEADING, FontFamily::Proportional))
+                            .strong()
+                            .color(MonoText::PRIMARY),
+                    );
+                });
+            });
+
+            ui.add_space(MonoSpace::XXL);
+            ui.separator();
+            ui.add_space(MonoSpace::LG);
 
             let nav_tabs = [
                 (Tab::Home, "Home"),
@@ -310,6 +326,23 @@ impl MangoFetchApp {
                 });
 
                 ui.add_space(MonoSpace::SM);
+            }
+
+            // Bottom radar scanner
+            let remaining_h = ui.available_height();
+            if remaining_h > 40.0 {
+                ui.add_space(remaining_h - 36.0);
+                ui.horizontal(|ui| {
+                    ui.add_space(MonoSpace::LG);
+                    let scan_chars = ["|", "/", "-", "\\"];
+                    let idx = ((chrono::Local::now().timestamp_subsec_millis() / 250) % 4) as usize;
+                    let spin = scan_chars[idx];
+                    ui.label(
+                        RichText::new(format!("{}  [RADAR: ACTIVE]", spin))
+                            .font(FontId::monospace(MonoType::MONO_SMALL))
+                            .color(self.theme.primary()),
+                    );
+                });
             }
         });
     }
@@ -1474,21 +1507,22 @@ impl eframe::App for MangoFetchApp {
             );
         }
 
-        // Navigation panel — top bar always shown
-        let top_nav = egui::TopBottomPanel::top("top_nav_panel")
-            .exact_height(48.0)
-            .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_1))
-            .show(ctx, |ui| {
-                self.render_top_nav(ui);
-            });
-        sep.hline(
-            top_nav.response.rect.left()..=top_nav.response.rect.right(),
-            top_nav.response.rect.bottom(),
-            sep_stroke,
-        );
-
-        // Sidebar (only in sidebar mode)
-        if !self.top_nav_layout {
+        // Navigation panel
+        if self.top_nav_layout {
+            // Top-nav mode: logo + tabs in top bar
+            let top_nav = egui::TopBottomPanel::top("top_nav_panel")
+                .exact_height(48.0)
+                .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_1))
+                .show(ctx, |ui| {
+                    self.render_top_nav(ui);
+                });
+            sep.hline(
+                top_nav.response.rect.left()..=top_nav.response.rect.right(),
+                top_nav.response.rect.bottom(),
+                sep_stroke,
+            );
+        } else {
+            // Sidebar mode: full sidebar with logo + tabs + radar
             let sidebar = egui::SidePanel::left("left_sidebar")
                 .resizable(false)
                 .exact_width(MonoLayout::SIDEBAR_WIDTH)
