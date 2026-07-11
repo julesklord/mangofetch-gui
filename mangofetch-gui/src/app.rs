@@ -6,8 +6,8 @@ use crate::runtime::AppRuntime;
 use crate::theme::*;
 use crate::widgets::*;
 use egui::{
-    Align, Button, Color32, CornerRadius, FontFamily, FontId, Frame, Layout, Margin, ProgressBar,
-    RichText, ScrollArea, Stroke, Ui, Vec2,
+    Align, Align2, Button, Color32, CornerRadius, FontFamily, FontId, Frame, Layout, Margin,
+    ProgressBar, RichText, ScrollArea, Stroke, StrokeKind, Ui, Vec2,
 };
 use egui_extras::{Column, TableBuilder};
 
@@ -635,72 +635,191 @@ impl MangoFetchApp {
                             loading_skeleton(ui, ui.available_width() * 0.4, 16.0);
                         });
                     } else if let Some(ref info) = self.media_info {
-                        surface_card(ui, |ui| {
-                            ui.label(
-                                RichText::new("Media Metadata Inspector")
-                                    .font(FontId::new(MonoType::LABEL, FontFamily::Proportional))
-                                    .strong()
-                                    .color(self.theme.primary()),
+                        let has_thumb = info
+                            .thumbnail_url
+                            .as_ref()
+                            .map(|u| !u.is_empty())
+                            .unwrap_or(false);
+
+                        if has_thumb {
+                            // ── THUMBNAIL CARD: image bg + layered blur overlays ──
+                            let card_w = ui.available_width();
+                            let card_h = 300.0;
+                            let img_h = card_h * 0.72;
+                            let text_h = card_h - img_h;
+
+                            // 1. Pre-allocate the image rect at the top
+                            let (img_rect, _) = ui.allocate_exact_size(
+                                Vec2::new(card_w, img_h),
+                                egui::Sense::hover(),
                             );
-                            ui.add_space(MonoSpace::MD);
 
-                            ui.horizontal(|ui| {
+                            // 2. Place the Image widget inside that rect (handles async load)
+                            let thumb_url = info.thumbnail_url.as_deref().unwrap_or("");
+                            ui.put(
+                                img_rect,
+                                egui::Image::from_uri(thumb_url)
+                                    .max_width(card_w)
+                                    .max_height(img_h),
+                            );
+
+                            // 3. Allocate text area below
+                            let (text_rect, _) = ui.allocate_exact_size(
+                                Vec2::new(card_w, text_h),
+                                egui::Sense::hover(),
+                            );
+
+                            // The full card rect (image + text)
+                            let card_rect = img_rect.union(text_rect);
+
+                            // 4. Painter draws on top of everything
+                            let painter = ui.painter();
+                            let rounding = CornerRadius::same(MonoLayout::CORNER_RADIUS_MD);
+
+                            // Card border
+                            painter.rect_stroke(
+                                card_rect,
+                                rounding,
+                                Stroke::new(1.0_f32, MonolithSurfaces::SURFACE_6),
+                                StrokeKind::Inside,
+                            );
+
+                            // ── BLUR LAYER 1: subtle full-image tint ──
+                            painter.rect_filled(
+                                img_rect,
+                                rounding,
+                                with_alpha(Color32::BLACK, 0.15),
+                            );
+
+                            // ── BLUR LAYER 2: mid-section darkening ──
+                            let mid_y = img_rect.min.y + img_rect.height() * 0.50;
+                            let mid_rect = egui::Rect::from_min_max(
+                                egui::pos2(img_rect.min.x, mid_y),
+                                img_rect.max,
+                            );
+                            painter.rect_filled(
+                                mid_rect,
+                                CornerRadius::ZERO,
+                                with_alpha(Color32::BLACK, 0.30),
+                            );
+
+                            // ── BLUR LAYER 3: info area (heaviest) ──
+                            let info_y = img_rect.min.y + img_rect.height() * 0.72;
+                            let info_area = egui::Rect::from_min_max(
+                                egui::pos2(img_rect.min.x, info_y),
+                                img_rect.max,
+                            );
+                            painter.rect_filled(
+                                info_area,
+                                CornerRadius::ZERO,
+                                with_alpha(Color32::BLACK, 0.50),
+                            );
+
+                            // Text area background
+                            painter.rect_filled(
+                                text_rect,
+                                CornerRadius::ZERO,
+                                MonolithSurfaces::SURFACE_4,
+                            );
+
+                            // ── TEXT on top of everything ──
+                            let text_x = text_rect.min.x + MonoSpace::LG;
+
+                            // Title (truncated if too long)
+                            let title_text = if info.title.len() > 50 {
+                                format!("{}...", &info.title[..47])
+                            } else {
+                                info.title.clone()
+                            };
+                            painter.text(
+                                egui::pos2(text_x, text_rect.min.y + MonoSpace::SM),
+                                Align2::LEFT_TOP,
+                                &title_text,
+                                FontId::new(MonoType::SUBHEADING, FontFamily::Proportional),
+                                MonoText::PRIMARY,
+                            );
+
+                            // Duration + Platform row
+                            let duration_text = if let Some(sec) = info.duration {
+                                let min = sec / 60;
+                                let s = sec % 60;
+                                format!("{:02}:{:02}", min, s)
+                            } else {
+                                "Live".to_string()
+                            };
+                            let row_y = text_rect.min.y + MonoSpace::SM + 22.0;
+                            painter.text(
+                                egui::pos2(text_x, row_y),
+                                Align2::LEFT_TOP,
+                                &duration_text,
+                                FontId::monospace(MonoType::MONO_DATA),
+                                MonoText::SECONDARY,
+                            );
+
+                            // Platform pill text
+                            let platform_label =
+                                format!("  {}  ", info.platform.to_uppercase());
+                            let duration_w = painter
+                                .layout_no_wrap(
+                                    duration_text.clone(),
+                                    FontId::monospace(MonoType::MONO_DATA),
+                                    MonoText::SECONDARY,
+                                )
+                                .size()
+                                .x;
+                            painter.text(
+                                egui::pos2(text_x + duration_w + 8.0, row_y),
+                                Align2::LEFT_TOP,
+                                &platform_label,
+                                FontId::monospace(MonoType::MICRO),
+                                self.theme.primary(),
+                            );
+                        } else {
+                            // ── NO THUMBNAIL: standard metadata card ──
+                            surface_card(ui, |ui| {
                                 ui.label(
-                                    RichText::new("Title:")
-                                        .color(MonoText::TERTIARY),
-                                );
-                                ui.label(
-                                    RichText::new(&info.title)
+                                    RichText::new("Media Metadata Inspector")
+                                        .font(FontId::new(MonoType::LABEL, FontFamily::Proportional))
                                         .strong()
-                                        .color(MonoText::PRIMARY),
+                                        .color(self.theme.primary()),
                                 );
-                            });
-                            ui.add_space(MonoSpace::SM);
+                                ui.add_space(MonoSpace::MD);
 
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new("Duration:")
-                                        .color(MonoText::TERTIARY),
-                                );
-                                if let Some(sec) = info.duration {
-                                    let min = sec / 60;
-                                    let s = sec % 60;
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new("Title:").color(MonoText::TERTIARY));
                                     ui.label(
-                                        RichText::new(format!("{:02}:{:02}", min, s))
-                                            .font(FontId::monospace(MonoType::MONO_DATA))
+                                        RichText::new(&info.title)
+                                            .strong()
                                             .color(MonoText::PRIMARY),
                                     );
-                                } else {
-                                    ui.label(
-                                        RichText::new("Live Stream / Unknown")
-                                            .color(MonoText::TERTIARY),
-                                    );
-                                }
-                            });
-                            ui.add_space(MonoSpace::SM);
+                                });
+                                ui.add_space(MonoSpace::SM);
 
-                            ui.horizontal(|ui| {
-                                ui.label(
-                                    RichText::new("Platform:")
-                                        .color(MonoText::TERTIARY),
-                                );
-                                platform_pill(ui, &info.platform);
-                            });
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new("Duration:").color(MonoText::TERTIARY));
+                                    if let Some(sec) = info.duration {
+                                        let min = sec / 60;
+                                        let s = sec % 60;
+                                        ui.label(
+                                            RichText::new(format!("{:02}:{:02}", min, s))
+                                                .font(FontId::monospace(MonoType::MONO_DATA))
+                                                .color(MonoText::PRIMARY),
+                                        );
+                                    } else {
+                                        ui.label(
+                                            RichText::new("Live Stream / Unknown")
+                                                .color(MonoText::TERTIARY),
+                                        );
+                                    }
+                                });
+                                ui.add_space(MonoSpace::SM);
 
-                            // Thumbnail preview
-                            if let Some(ref thumb_url) = info.thumbnail_url {
-                                if !thumb_url.is_empty() {
-                                    ui.add_space(MonoSpace::MD);
-                                    let max_thumb_w = ui.available_width();
-                                    let max_thumb_h = 220.0;
-                                    ui.add(
-                                        egui::Image::from_uri(thumb_url.as_str())
-                                            .max_width(max_thumb_w)
-                                            .max_height(max_thumb_h),
-                                    );
-                                }
-                            }
-                        });
+                                ui.horizontal(|ui| {
+                                    ui.label(RichText::new("Platform:").color(MonoText::TERTIARY));
+                                    platform_pill(ui, &info.platform);
+                                });
+                            });
+                        }
                     } else if let Some(ref err) = self.media_info_error {
                         error_banner(ui, &format!("Metadata check failed: {}", err));
                     } else {
