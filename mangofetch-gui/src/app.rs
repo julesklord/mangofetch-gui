@@ -221,7 +221,7 @@ impl MangoFetchApp {
             ui.horizontal(|ui| {
                 ui.add_space(MonoSpace::LG);
                 ui.add(
-                    egui::Image::new(egui::include_image!("../../docs/assets/logo.svg"))
+                    egui::Image::new(egui::include_image!("../../../../docs/assets/logo.svg"))
                         .max_width(28.0)
                         .max_height(28.0),
                 );
