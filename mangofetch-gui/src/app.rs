@@ -168,76 +168,45 @@ impl MangoFetchApp {
 
     fn render_top_nav(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
-            if self.top_nav_layout {
-                // ── Top-nav mode: logo + tabs ──
-                ui.add_space(MonoSpace::LG);
-                ui.add(
-                    egui::Image::new(egui::include_image!("../../docs/assets/logo.svg"))
-                        .max_width(22.0)
-                        .max_height(22.0),
-                );
-                ui.add_space(MonoSpace::SM);
-                ui.label(
-                    RichText::new("MANGOFETCH")
-                        .font(FontId::new(MonoType::HEADING, FontFamily::Proportional))
+            ui.add_space(MonoSpace::LG);
+
+            let nav_tabs = [
+                (Tab::Home, "Home"),
+                (Tab::Queue, "Queue"),
+                (Tab::Settings, "Settings"),
+                (Tab::Logs, "Logs"),
+                (Tab::About, "About"),
+            ];
+
+            for (tab_enum, label) in nav_tabs {
+                let is_active = self.current_tab == tab_enum;
+                let text_color = if is_active {
+                    self.theme.primary()
+                } else {
+                    MonoText::TERTIARY
+                };
+                let fill_color = if is_active {
+                    MonolithSurfaces::TAB_ACTIVE
+                } else {
+                    Color32::TRANSPARENT
+                };
+                let button = egui::Button::new(
+                    RichText::new(label)
                         .strong()
-                        .color(MonoText::PRIMARY),
-                );
-                ui.add_space(MonoSpace::XL);
-                ui.separator();
-                ui.add_space(MonoSpace::MD);
-
-                let nav_tabs = [
-                    (Tab::Home, "Home"),
-                    (Tab::Queue, "Queue"),
-                    (Tab::Settings, "Settings"),
-                    (Tab::Logs, "Logs"),
-                    (Tab::About, "About"),
-                ];
-
-                for (tab_enum, label) in nav_tabs {
-                    let is_active = self.current_tab == tab_enum;
-                    let text_color = if is_active {
-                        self.theme.primary()
-                    } else {
-                        MonoText::TERTIARY
-                    };
-                    let fill_color = if is_active {
-                        MonolithSurfaces::TAB_ACTIVE
-                    } else {
-                        Color32::TRANSPARENT
-                    };
-                    let button = egui::Button::new(
-                        RichText::new(label)
-                            .strong()
-                            .color(text_color)
-                            .font(FontId::new(MonoType::LABEL, FontFamily::Proportional)),
-                    )
-                    .fill(fill_color)
-                    .min_size(egui::vec2(0.0, MonoSpace::XXXL));
-                    let response = ui.add(button);
-                    if response.clicked() {
-                        self.current_tab = tab_enum;
-                        if tab_enum == Tab::Queue {
-                            let _ = self.runtime.send_command(GuiCommand::RefreshQueue);
-                        }
+                        .color(text_color)
+                        .font(FontId::new(MonoType::LABEL, FontFamily::Proportional)),
+                )
+                .fill(fill_color)
+                .min_size(egui::vec2(0.0, MonoSpace::XXXL));
+                let response = ui.add(button);
+                if response.clicked() {
+                    self.current_tab = tab_enum;
+                    if tab_enum == Tab::Queue {
+                        let _ = self.runtime.send_command(GuiCommand::RefreshQueue);
                     }
-                    ui.add_space(MonoSpace::SM);
                 }
+                ui.add_space(MonoSpace::SM);
             }
-
-            // ── Right side: status (always) ──
-            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                ui.add_space(MonoSpace::LG);
-                let scan_chars = ["|", "/", "-", "\\"];
-                let idx = ((chrono::Local::now().timestamp_subsec_millis() / 250) % 4) as usize;
-                let spin = scan_chars[idx];
-                ui.label(
-                    RichText::new(format!("{}  RADAR: ACTIVE", spin))
-                        .font(FontId::monospace(MonoType::MONO_SMALL))
-                        .color(self.theme.primary()),
-                );
-            });
         });
     }
 
