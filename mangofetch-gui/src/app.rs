@@ -93,7 +93,7 @@ impl MangoFetchApp {
             show_persistent_logs: false,
             sys,
             last_sys_refresh: std::time::Instant::now(),
-            top_nav_layout: true,
+            top_nav_layout: false,
         };
 
         let _ = app.runtime.send_command(GuiCommand::CheckDependencies);
@@ -168,81 +168,90 @@ impl MangoFetchApp {
 
     fn render_top_nav(&mut self, ui: &mut Ui) {
         ui.horizontal(|ui| {
+            // ── Brand logo ──
             ui.add_space(MonoSpace::LG);
+            ui.add(
+                egui::Image::new(egui::include_image!("../../docs/assets/logo.svg"))
+                    .max_width(22.0)
+                    .max_height(22.0),
+            );
+            ui.add_space(MonoSpace::SM);
+            ui.label(
+                RichText::new("MANGOFETCH")
+                    .font(FontId::new(MonoType::HEADING, FontFamily::Proportional))
+                    .strong()
+                    .color(MonoText::PRIMARY),
+            );
 
-            let nav_tabs = [
-                (Tab::Home, "Home"),
-                (Tab::Queue, "Queue"),
-                (Tab::Settings, "Settings"),
-                (Tab::Logs, "Logs"),
-                (Tab::About, "About"),
-            ];
+            // ── Nav tabs (only in top-nav mode) ──
+            if self.top_nav_layout {
+                ui.add_space(MonoSpace::XL);
+                ui.separator();
+                ui.add_space(MonoSpace::MD);
 
-            for (tab_enum, label) in nav_tabs {
-                let is_active = self.current_tab == tab_enum;
+                let nav_tabs = [
+                    (Tab::Home, "Home"),
+                    (Tab::Queue, "Queue"),
+                    (Tab::Settings, "Settings"),
+                    (Tab::Logs, "Logs"),
+                    (Tab::About, "About"),
+                ];
 
-                let text_color = if is_active {
-                    self.theme.primary()
-                } else {
-                    MonoText::TERTIARY
-                };
+                for (tab_enum, label) in nav_tabs {
+                    let is_active = self.current_tab == tab_enum;
 
-                let fill_color = if is_active {
-                    MonolithSurfaces::TAB_ACTIVE
-                } else {
-                    Color32::TRANSPARENT
-                };
+                    let text_color = if is_active {
+                        self.theme.primary()
+                    } else {
+                        MonoText::TERTIARY
+                    };
 
-                let button = egui::Button::new(
-                    RichText::new(label)
-                        .strong()
-                        .color(text_color)
-                        .font(FontId::new(MonoType::LABEL, FontFamily::Proportional)),
-                )
-                .fill(fill_color)
-                .min_size(egui::vec2(0.0, MonoSpace::XXXL));
+                    let fill_color = if is_active {
+                        MonolithSurfaces::TAB_ACTIVE
+                    } else {
+                        Color32::TRANSPARENT
+                    };
 
-                let response = ui.add(button);
+                    let button = egui::Button::new(
+                        RichText::new(label)
+                            .strong()
+                            .color(text_color)
+                            .font(FontId::new(MonoType::LABEL, FontFamily::Proportional)),
+                    )
+                    .fill(fill_color)
+                    .min_size(egui::vec2(0.0, MonoSpace::XXXL));
 
-                if response.clicked() {
-                    self.current_tab = tab_enum;
-                    if tab_enum == Tab::Queue {
-                        let _ = self.runtime.send_command(GuiCommand::RefreshQueue);
+                    let response = ui.add(button);
+
+                    if response.clicked() {
+                        self.current_tab = tab_enum;
+                        if tab_enum == Tab::Queue {
+                            let _ = self.runtime.send_command(GuiCommand::RefreshQueue);
+                        }
                     }
-                }
 
-                ui.add_space(MonoSpace::SM);
+                    ui.add_space(MonoSpace::SM);
+                }
             }
+
+            // ── Right side: status ──
+            ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                ui.add_space(MonoSpace::LG);
+                let scan_chars = ["|", "/", "-", "\\"];
+                let idx = ((chrono::Local::now().timestamp_subsec_millis() / 250) % 4) as usize;
+                let spin = scan_chars[idx];
+                ui.label(
+                    RichText::new(format!("{}  RADAR: ACTIVE", spin))
+                        .font(FontId::monospace(MonoType::MONO_SMALL))
+                        .color(self.theme.primary()),
+                );
+            });
         });
     }
 
     fn render_sidebar(&mut self, ui: &mut Ui) {
         ui.vertical(|ui| {
-            ui.add_space(MonoSpace::XXL);
-
-            // Brand header
-            ui.horizontal(|ui| {
-                ui.add_space(MonoSpace::LG);
-                ui.add(
-                    egui::Image::new(egui::include_image!("../../docs/assets/logo.svg"))
-                        .max_width(28.0)
-                        .max_height(28.0),
-                );
-                ui.add_space(MonoSpace::SM);
-                ui.vertical(|ui| {
-                    ui.add_space(4.0);
-                    ui.label(
-                        RichText::new("MANGOFETCH")
-                            .font(FontId::new(MonoType::HEADING, FontFamily::Proportional))
-                            .strong()
-                            .color(MonoText::PRIMARY),
-                    );
-                });
-            });
-
-            ui.add_space(MonoSpace::XXL);
-            ui.separator();
-            ui.add_space(MonoSpace::LG);
+            ui.add_space(MonoSpace::MD);
 
             let nav_tabs = [
                 (Tab::Home, "Home"),
@@ -301,23 +310,6 @@ impl MangoFetchApp {
                 });
 
                 ui.add_space(MonoSpace::SM);
-            }
-
-            // Bottom radar scanner
-            let remaining_h = ui.available_height();
-            if remaining_h > 40.0 {
-                ui.add_space(remaining_h - 36.0);
-                ui.horizontal(|ui| {
-                    ui.add_space(MonoSpace::LG);
-                    let scan_chars = ["|", "/", "-", "\\"];
-                    let idx = ((chrono::Local::now().timestamp_subsec_millis() / 250) % 4) as usize;
-                    let spin = scan_chars[idx];
-                    ui.label(
-                        RichText::new(format!("{}  [RADAR: ACTIVE]", spin))
-                            .font(FontId::monospace(MonoType::MONO_SMALL))
-                            .color(self.theme.primary()),
-                    );
-                });
             }
         });
     }
@@ -1046,7 +1038,7 @@ impl MangoFetchApp {
 
                 ui.checkbox(
                     &mut self.top_nav_layout,
-                    "Use Top Navigation Bar instead of Sidebar (Hotkey: L)",
+                    "Hide sidebar, show tabs in top bar (Hotkey: L)",
                 );
                 ui.add_space(MonoSpace::SM);
 
@@ -1482,20 +1474,21 @@ impl eframe::App for MangoFetchApp {
             );
         }
 
-        // Navigation panel
-        if self.top_nav_layout {
-            let top_nav = egui::TopBottomPanel::top("top_nav_panel")
-                .exact_height(48.0)
-                .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_1))
-                .show(ctx, |ui| {
-                    self.render_top_nav(ui);
-                });
-            sep.hline(
-                top_nav.response.rect.left()..=top_nav.response.rect.right(),
-                top_nav.response.rect.bottom(),
-                sep_stroke,
-            );
-        } else {
+        // Navigation panel — top bar always shown
+        let top_nav = egui::TopBottomPanel::top("top_nav_panel")
+            .exact_height(48.0)
+            .frame(Frame::NONE.fill(MonolithSurfaces::SURFACE_1))
+            .show(ctx, |ui| {
+                self.render_top_nav(ui);
+            });
+        sep.hline(
+            top_nav.response.rect.left()..=top_nav.response.rect.right(),
+            top_nav.response.rect.bottom(),
+            sep_stroke,
+        );
+
+        // Sidebar (only in sidebar mode)
+        if !self.top_nav_layout {
             let sidebar = egui::SidePanel::left("left_sidebar")
                 .resizable(false)
                 .exact_width(MonoLayout::SIDEBAR_WIDTH)
