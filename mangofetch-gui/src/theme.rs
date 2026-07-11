@@ -268,48 +268,96 @@ pub fn apply_monolith_dark(ctx: &egui::Context, brand: BrandPreset) {
     ctx.set_visuals(visuals);
 }
 
-/// Loads custom fonts (Outfit + DM Mono) and configures the font scale
+/// Loads system fonts based on the user's graphical environment.
+/// Falls back to egui's built-in defaults if no suitable system font is found.
 pub fn load_fonts(ctx: &egui::Context) {
     let mut fonts = egui::FontDefinitions::default();
 
-    // Outfit Regular
-    fonts.font_data.insert(
-        "outfit_regular".to_owned(),
-        std::sync::Arc::new(egui::FontData::from_owned(
-            include_bytes!("../assets/Outfit-Regular.ttf").to_vec(),
-        )),
-    );
+    // Try to find a system proportional (sans-serif) font
+    let proportional_candidates = [
+        "sans-serif",
+        "Arial",
+        "Helvetica",
+        "Liberation Sans",
+        "Noto Sans",
+        "DejaVu Sans",
+        "Ubuntu",
+        "Cantarell",
+        "Inter",
+        "Segoe UI",
+        "San Francisco",
+        "PingFang SC",
+    ];
 
-    // Outfit Bold
-    fonts.font_data.insert(
-        "outfit_bold".to_owned(),
-        std::sync::Arc::new(egui::FontData::from_owned(
-            include_bytes!("../assets/Outfit-Bold.ttf").to_vec(),
-        )),
-    );
+    // Try to find a system monospace font
+    let monospace_candidates = [
+        "monospace",
+        "Courier New",
+        "Liberation Mono",
+        "Noto Sans Mono",
+        "DejaVu Sans Mono",
+        "Ubuntu Mono",
+        "Roboto Mono",
+        "Cascadia Code",
+        "JetBrains Mono",
+        "Fira Code",
+        "SF Mono",
+        "Menlo",
+    ];
 
-    // DM Mono
-    fonts.font_data.insert(
-        "dm_mono".to_owned(),
-        std::sync::Arc::new(egui::FontData::from_owned(
-            include_bytes!("../assets/DMMono-Regular.ttf").to_vec(),
-        )),
-    );
+    let mut loaded_proportional = false;
+    let mut loaded_monospace = false;
 
-    // Set Outfit as default proportional
-    fonts
-        .families
-        .entry(egui::FontFamily::Proportional)
-        .or_default()
-        .insert(0, "outfit_regular".to_owned());
+    for family in &proportional_candidates {
+        if loaded_proportional {
+            break;
+        }
+        let property = font_loader::system_fonts::FontPropertyBuilder::new()
+            .family(family)
+            .build();
+        if let Some((data, _index)) = font_loader::system_fonts::get(&property) {
+            fonts.font_data.insert(
+                "system_proportional".to_owned(),
+                std::sync::Arc::new(egui::FontData::from_owned(data)),
+            );
+            fonts
+                .families
+                .entry(egui::FontFamily::Proportional)
+                .or_default()
+                .insert(0, "system_proportional".to_owned());
+            loaded_proportional = true;
+            tracing::info!("Loaded system proportional font: {}", family);
+        }
+    }
 
-    // Set DM Mono as default monospace
-    fonts
-        .families
-        .entry(egui::FontFamily::Monospace)
-        .or_default()
-        .insert(0, "dm_mono".to_owned());
+    for family in &monospace_candidates {
+        if loaded_monospace {
+            break;
+        }
+        let property = font_loader::system_fonts::FontPropertyBuilder::new()
+            .family(family)
+            .build();
+        if let Some((data, _index)) = font_loader::system_fonts::get(&property) {
+            fonts.font_data.insert(
+                "system_monospace".to_owned(),
+                std::sync::Arc::new(egui::FontData::from_owned(data)),
+            );
+            fonts
+                .families
+                .entry(egui::FontFamily::Monospace)
+                .or_default()
+                .insert(0, "system_monospace".to_owned());
+            loaded_monospace = true;
+            tracing::info!("Loaded system monospace font: {}", family);
+        }
+    }
+
+    if !loaded_proportional {
+        tracing::warn!("No system proportional font found, using egui defaults");
+    }
+    if !loaded_monospace {
+        tracing::warn!("No system monospace font found, using egui defaults");
+    }
 
     ctx.set_fonts(fonts);
-    tracing::debug!("MonolithUI fonts loaded (Outfit + DM Mono)");
 }
